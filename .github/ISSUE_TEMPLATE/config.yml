@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Falha de segurança / Security issue
+    url: https://github.com/oLucasAguilar/pii-tokens/security/advisories/new
+    about: Dado pessoal chegando ao modelo? Reporte em privado. / Personal data reaching the model? Report it privately.

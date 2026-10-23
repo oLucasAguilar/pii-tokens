@@ -1,0 +1,55 @@
+{
+  "name": "pii-tokens",
+  "displayName": "PII Tokens",
+  "version": "0.4.0",
+  "description": "Masks CPF, CNPJ, email, phone and personal fields (table columns, JSON keys) in tool output before Claude sees them, with reversible tokens kept in an encrypted local vault.",
+  "author": {
+    "name": "Lucas Aguilar"
+  },
+  "repository": "https://github.com/oLucasAguilar/pii-tokens",
+  "keywords": [
+    "pii",
+    "privacy",
+    "lgpd",
+    "cpf",
+    "cnpj",
+    "redaction"
+  ],
+  "userConfig": {
+    "allowed_email_domains": {
+      "type": "string",
+      "multiple": true,
+      "title": "Allowed email domains",
+      "description": "Email domains left unmasked, such as your company's. Subdomains are included.",
+      "default": []
+    },
+    "table_tools": {
+      "type": "string",
+      "multiple": true,
+      "title": "Tools that return tables",
+      "description": "Tool name prefixes whose output is a psql-style table, masked by column name. Example: mcp__postgres__",
+      "default": []
+    },
+    "dev_tool_names": {
+      "type": "boolean",
+      "title": "Keep developer tool names",
+      "description": "Leave name fields visible in package.json, lockfiles, kubectl, docker inspect, terraform, OpenAPI and GitHub repo JSON. Off by default: every name field is masked. When on, a one-word name inside a document shaped like one of those tools is not masked.",
+      "default": false
+    },
+    "readable_fields": {
+      "type": "string",
+      "multiple": true,
+      "title": "Readable fields",
+      "description": "Fields that hold no person's name, as tool:path. Example: mcp__monday__:**.items[].name keeps Monday card titles. A CPF, CNPJ, email or phone inside the field is still masked. Empty by default.",
+      "default": []
+    },
+    "masked_fields": {
+      "type": "string",
+      "multiple": true,
+      "title": "Masked fields",
+      "description": "Fields that hold personal data although their name does not say so, as tool:path. Example: mcp__monday__:**.column_values[id=text_abc123].text masks one Monday column. Wins over readable fields. Empty by default.",
+      "default": []
+    }
+  },
+  "license": "MIT"
+}

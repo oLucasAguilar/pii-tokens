@@ -1,0 +1,14 @@
+{
+  "name": "pii-tokens",
+  "owner": {
+    "name": "Lucas Aguilar"
+  },
+  "description": "Claude Code plugin that keeps Brazilian personal data out of the model context.",
+  "plugins": [
+    {
+      "name": "pii-tokens",
+      "source": "./",
+      "description": "Masks Brazilian personal data (CPF, CNPJ, email, phone, names in tables and JSON) before Claude sees it, with reversible tokens."
+    }
+  ]
+}

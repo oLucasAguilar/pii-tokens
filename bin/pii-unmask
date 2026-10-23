@@ -1,0 +1,8 @@
+#!/bin/sh
+# Follow links by hand: readlink -f is missing on macOS before 12.3.
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink "$self")
+  case $link in /*) self=$link ;; *) self=$(dirname "$self")/$link ;; esac
+done
+exec "$(dirname "$self")/../scripts/run.sh" cli.py pii-unmask "$@"

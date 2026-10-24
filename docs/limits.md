@@ -23,7 +23,10 @@ Isto protege contra exposição acidental, não contra um modelo tentando extrai
 - **Segredos não são mascarados:** chave de API, senha, token de acesso, string de conexão. O plugin cuida de dado pessoal; para segredos, use junto uma ferramenta de segredos ([alternativas](alternativas.md)).
 - **Comando com `!` não passa por hook nenhum.**
 	- A saída entra direto no contexto, e não tem como ser barrado.
-- **Imagem não é mascarada.** Print de uma tela com CPF passa.
+- **Imagem é mascarada por OCR, e o OCR erra.** O que ele não lê fica visível.
+	- Em prints de teste: CPF 127 de 128, CNPJ 124, telefone 128, email 103. Nome não é detectado.
+	- Print colado na mensagem não pode ser trocado: é barrado, e o Claude lê o arquivo. Medido só no Linux.
+	- Sem `tesseract`, a imagem passa, com aviso.
 - **Consulta montada para escapar dos nomes de campo passa.**
 	- Função no SQL, como `SELECT reverse(cpf)`.
 	- Campo renomeado, como `titulo: name` no GraphQL ou `AS titulo` no SQL.

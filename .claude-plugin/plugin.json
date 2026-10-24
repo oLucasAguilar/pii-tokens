@@ -1,7 +1,7 @@
 {
   "name": "pii-tokens",
   "displayName": "PII Tokens",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Masks CPF, CNPJ, email, phone and personal fields (table columns, JSON keys) in tool output before Claude sees them, with reversible tokens kept in an encrypted local vault.",
   "author": {
     "name": "Lucas Aguilar"
@@ -49,6 +49,12 @@
       "title": "Masked fields",
       "description": "Fields that hold personal data although their name does not say so, as tool:path. Example: mcp__monday__:**.column_values[id=text_abc123].text masks one Monday column. Wins over readable fields. Empty by default.",
       "default": []
+    },
+    "copy_read_request": {
+      "type": "boolean",
+      "title": "Copy the read request to the clipboard",
+      "description": "When a pasted image with personal data blocks the prompt, copy the message that asks Claude to read it (and so masks it) to the clipboard, ready to paste. Replaces what the clipboard held. On by default.",
+      "default": true
     }
   },
   "license": "MIT"

@@ -23,7 +23,10 @@ This protects against accidental exposure, not against a model trying to extract
 - **Secrets are not masked:** API keys, passwords, access tokens, connection strings. The plugin handles personal data; for secrets, run a secrets tool alongside it ([alternatives](alternatives.md)).
 - **`!` commands skip every hook.**
 	- Their output goes straight into the context, and they cannot be blocked.
-- **Images are not masked.** A screenshot of a page with a CPF goes through.
+- **Images are masked by OCR, and OCR makes mistakes.** What it cannot read stays visible.
+	- On test screenshots: CPF 127 of 128, CNPJ 124, phone 128, email 103. Names are not detected.
+	- A screenshot pasted into the message cannot be swapped: it is blocked, and Claude reads the file instead. Measured on Linux only.
+	- Without `tesseract`, the image goes through, with a warning.
 - **A query built to dodge the field names gets through.**
 	- A SQL function, such as `SELECT reverse(cpf)`.
 	- A renamed field, such as `title: name` in GraphQL or `AS title` in SQL.

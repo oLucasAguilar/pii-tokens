@@ -47,6 +47,10 @@ pii-exec -- grep CPF#3f1a9c0d22e4 app.log   # roda com o CPF real; a saída volt
 pii-reveal relatorio.md                     # abre a versão real no seu editor, longe do Claude
 ```
 
+**Print de tela**
+
+Imagem que o Claude lê, de arquivo ou do navegador, chega com o token desenhado no lugar do CPF e do CNPJ. Print colado na mensagem é barrado, e o pedido para ler o arquivo vai para a sua área de transferência: cole e envie. Precisa do `tesseract`.
+
 Comandos e configurações: [docs/usage.md](docs/usage.md).
 
 ## O que é mascarado
@@ -62,7 +66,8 @@ Comandos e configurações: [docs/usage.md](docs/usage.md).
 
 Protege contra vazamento por descuido, não contra um modelo decidido a extrair o dado.
 
-- Nome em texto livre, comando que falha, comando com `!` e imagem passam.
+- Nome em texto livre, comando que falha e comando com `!` passam.
+- Em imagem, o OCR acha quase todo CPF e CNPJ, não todos.
 - Chave, senha e token de API passam: o plugin cuida de dado pessoal.
 - O token é pseudônimo, não anônimo.
 

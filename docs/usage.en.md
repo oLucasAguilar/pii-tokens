@@ -10,6 +10,8 @@ On the first session, the plugin installs its dependencies, pinned by hash, into
 
 - If that fails, masking still runs, but tokens show as `CPF#????????` and cannot be reversed.
 
+To mask images, install `tesseract` (`apt install tesseract-ocr` or `brew install tesseract`).
+
 ## Check that it works
 
 Run `pii-selfcheck` after installing, and again after every Claude Code update.
@@ -48,6 +50,7 @@ All optional. Asked when the plugin is enabled, changed later with `claude plugi
 	- Allowed out of the box, with no setting: `example.com`, `example.org` and GitHub `noreply` addresses.
 - **Tools that return tables:** prefixes of MCP tools that return a psql-style table, such as `mcp__postgres__`.
 	- Their columns are masked by name (`nome`, `razao_social`, `email`, ...).
+- **Copy the read request:** on by default. When a pasted screenshot is blocked, the message asking Claude to read the file goes to the clipboard, replacing what was there.
 - **Keep developer tool names:** off by default. See [Side effects](limits.en.md#side-effects).
 - **Readable fields:** fields you know hold no person's name, in one tool. Format `tool:path`.
 	- Example, to read card titles in the Monday MCP: `mcp__monday__:**.items[].name`, `mcp__monday__:**.subitems[].name`, `mcp__monday__:**.boards[].name`.

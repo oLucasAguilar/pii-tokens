@@ -30,7 +30,7 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/run.sh hook.py prompt",
-            "timeout": 10
+            "timeout": 30
           }
         ]
       }

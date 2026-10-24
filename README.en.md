@@ -47,6 +47,10 @@ pii-exec -- grep CPF#3f1a9c0d22e4 app.log   # runs with the real CPF; the output
 pii-reveal report.md                        # opens the real version in your editor, away from Claude
 ```
 
+**Screenshots**
+
+An image Claude reads, from a file or the browser, arrives with the token drawn over the CPF and CNPJ. A screenshot pasted into the message is blocked, and the request to read the file goes to your clipboard: paste and send. Needs `tesseract`.
+
 Commands and settings: [docs/usage.en.md](docs/usage.en.md).
 
 ## What gets masked
@@ -62,7 +66,8 @@ Commands and settings: [docs/usage.en.md](docs/usage.en.md).
 
 It protects against accidental leaks, not against a model set on extracting the data.
 
-- Names in free text, failing commands, `!` commands and images get through.
+- Names in free text, failing commands and `!` commands get through.
+- In images, OCR finds almost every CPF and CNPJ, not all of them.
 - Keys, passwords and API tokens get through: the plugin handles personal data.
 - A token is a pseudonym, not anonymous.
 

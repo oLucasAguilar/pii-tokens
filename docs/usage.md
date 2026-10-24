@@ -10,6 +10,8 @@ Na primeira sessão, o plugin instala as dependências dele, fixadas por hash, n
 
 - Se isso falhar, a máscara continua, mas os tokens aparecem como `CPF#????????` e não voltam.
 
+Para mascarar imagem, instale o `tesseract` (`apt install tesseract-ocr` ou `brew install tesseract`).
+
 ## Conferir se funciona
 
 Rode `pii-selfcheck` depois de instalar, e de novo a cada atualização do Claude Code.
@@ -49,6 +51,7 @@ Todas opcionais. Pedidas quando o plugin é ativado, alteráveis depois com `cla
 - **Ferramentas que devolvem tabela:** prefixos de ferramentas MCP que devolvem tabela no formato do psql.
 	- Exemplo: `mcp__postgres__`.
 	- As colunas delas são mascaradas pelo nome (`nome`, `razao_social`, `email`, ...).
+- **Copiar o pedido de leitura:** ligada por padrão. Quando um print colado é barrado, a mensagem que pede a leitura do arquivo vai para a área de transferência, no lugar do que estava lá.
 - **Manter nomes de ferramenta de dev:** desligada por padrão. Veja [Efeitos colaterais](limits.md#efeitos-colaterais).
 - **Campos legíveis:** campos que você sabe que não guardam nome de pessoa, numa ferramenta só. Formato `ferramenta:caminho`.
 	- Exemplo, para ler o título dos cards no MCP do Monday: `mcp__monday__:**.items[].name`, `mcp__monday__:**.subitems[].name`, `mcp__monday__:**.boards[].name`.

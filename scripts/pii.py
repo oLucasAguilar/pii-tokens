@@ -63,6 +63,7 @@ ALLOWED_EMAIL_DOMAINS = BUILTIN_ALLOWED_EMAIL_DOMAINS + tuple(d.lower() for d in
 TABLE_TOOLS = _option("table_tools", ())
 ALLOWED_TOKENS = frozenset(_option("allowed_tokens", ()))
 DEV_TOOL_NAMES = _option("dev_tool_names", False)
+COPY_READ_REQUEST = _option("copy_read_request", True)
 
 TOKEN_RE = re.compile(
     r"\b(CPF|CNPJ|EMAIL|PHONE|NAME|CONTACT|DOC|TEL|NOME|CONTATO)#"

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Claude Code hooks that keep personal data out of the model context.
 
-  hook.py post    PostToolUse: masks the output of every tool
-  hook.py prompt  UserPromptSubmit: blocks prompts carrying CPF/CNPJ or @-mentioned files with PII
+  hook.py post    PostToolUse: masks the output of every tool, images included (OCR)
+  hook.py prompt  UserPromptSubmit: blocks prompts carrying CPF/CNPJ, pasted images or @-mentioned files with PII
   hook.py pre     PreToolUse: asks before a live token is written into a repository file or a commit message
 """
 
@@ -21,6 +21,11 @@ SPREADSHEET_SUFFIXES = (".csv", ".tsv")
 SHAPE_KEYS = ("type", "mode")
 AT_MENTION = re.compile(r"(?:^|(?<=\s))@(\"[^\"]+\"|\S+)")
 AT_MENTION_MAX_BYTES = 5_000_000
+BLANK_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC"
+IMAGE_UNCHECKED = (
+    "[pii-tokens] This image was not checked for personal data: install tesseract (and Pillow in the plugin venv) "
+    "to have CPF, CNPJ, e-mail and phone in images replaced by tokens."
+)
 
 
 def emit(payload: dict) -> None:
@@ -60,6 +65,22 @@ def _deadline_reached(signum, frame):
     raise TimeoutError(f"masking took longer than {DEADLINE_SECONDS}s")
 
 
+def _mask_images(image, response, vault):
+    """The response with its images masked (blank when masking fails), and the note for Claude."""
+    if not image.available():
+        return response, IMAGE_UNCHECKED
+    try:
+        masked, labels = image.mask_images(response, vault)
+    except Exception as e:
+        # The output must keep the image shape, or Claude Code falls back to the original.
+        return image.blank_images(response, BLANK_PNG), f"[pii-tokens] image withheld: masking failed ({type(e).__name__}: {e})"
+    if not labels:
+        return masked, None
+    return masked, "[pii-tokens] Personal data in this image was replaced by tokens (OCR, best effort): " + ", ".join(
+        dict.fromkeys(labels)
+    )
+
+
 def post(event: dict) -> None:
     tool = event.get("tool_name", "")
     if tool == "Read" and _git_tracked(event.get("tool_input", {}).get("file_path", "")):
@@ -67,16 +88,32 @@ def post(event: dict) -> None:
     response = event.get("tool_response")
     signal.signal(signal.SIGALRM, _deadline_reached)
     signal.alarm(DEADLINE_SECONDS)
+    with_images, note = False, None
     try:
+        import image
         import pii
 
+        with_images = image.has_image(response)
         vault = pii.Vault()
+        if with_images:
+            response_images, note = _mask_images(image, response, vault)
+            text_only = image.replace_images(response_images, "")  # base64 is never text to mask
+        else:
+            text_only = response
         tables = bool(pii.TABLE_TOOLS) and tool.startswith(pii.TABLE_TOOLS)
-        masked = pii.mask_json(_mask_spreadsheet_read(pii, event, response, vault), vault, tables, tool)
+        masked = pii.mask_json(_mask_spreadsheet_read(pii, event, text_only, vault), vault, tables, tool)
+        if with_images:
+            masked = image.restore_images(masked, response_images)
     except Exception as e:
         masked = _suppress(response, f"[pii-tokens] output suppressed: masking failed ({type(e).__name__}: {e})")
-    if masked != response:
-        emit({"hookSpecificOutput": {"hookEventName": "PostToolUse", "updatedToolOutput": masked}})
+        if with_images:
+            masked = image.blank_images(masked, BLANK_PNG)
+    if masked == response and not note:
+        return
+    output = {"hookEventName": "PostToolUse", "updatedToolOutput": masked}
+    if note:
+        output["additionalContext"] = note
+    emit({"hookSpecificOutput": output})
 
 
 def _mentioned_files_with_pii(pii, text: str, cwd: str) -> list[str]:
@@ -97,6 +134,51 @@ def _mentioned_files_with_pii(pii, text: str, cwd: str) -> list[str]:
     return found
 
 
+CLIPBOARD_COMMANDS = (["wl-copy"], ["xclip", "-selection", "clipboard"], ["pbcopy"])
+
+
+def _copy_to_clipboard(text: str) -> bool:
+    import shutil
+
+    for command in CLIPBOARD_COMMANDS:
+        if not shutil.which(command[0]):
+            continue
+        try:
+            done = subprocess.run(command, input=text.encode(), stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL, timeout=3)
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if done.returncode == 0:
+            return True
+    return False
+
+
+def _pasted_images_to_block(event: dict) -> tuple[list[str], bool]:
+    """Pasted images that hold personal data, or that could not be checked; and whether OCR is missing."""
+    import image
+
+    paths = image.pasted_images(event)
+    if not paths:
+        return [], False
+    if not image.available():
+        return [], True
+    # Claude Code sends the prompt when the hook times out, so the hook must give up first and block.
+    signal.signal(signal.SIGALRM, _deadline_reached)
+    signal.alarm(DEADLINE_SECONDS)
+    blocked = []
+    for i, path in enumerate(paths):
+        try:
+            if image.has_personal_data(path.read_bytes()):
+                blocked.append(str(path))
+        except TimeoutError:
+            blocked.extend(str(p) for p in paths[i:])
+            break
+        except Exception:
+            blocked.append(str(path))
+    signal.alarm(0)
+    return blocked, False
+
+
 def prompt(event: dict) -> None:
     import pii
 
@@ -111,6 +193,24 @@ def prompt(event: dict) -> None:
                 f"[pii-tokens] Prompt blocked: {', '.join(mentioned)} contains personal data, and a file "
                 "mentioned with @ enters the context without passing through masking. Write the path "
                 f"without the @ and ask for it to be read. To send anyway, include `{PROMPT_ESCAPE}`."
+            ),
+        })
+        return
+    images, unchecked = _pasted_images_to_block(event)
+    if images:
+        import image
+
+        request = f"Read {' and '.join(images)}. {image.PASTED_IMAGE.sub('', text).strip()}".strip()
+        copied = pii.COPY_READ_REQUEST and _copy_to_clipboard(request)
+        emit({
+            "decision": "block",
+            "reason": (
+                "[pii-tokens] Prompt blocked: a pasted image holds personal data (or could not be checked in time), "
+                "and a pasted image reaches "
+                "Claude as it is; reading the file instead replaces the data with tokens. "
+                + ("The message below is in your clipboard: clear the prompt, paste it and send.\n\n"
+                   if copied else "Clear the prompt and send:\n\n")
+                + f"{request}\n\nTo send the image anyway, include `{PROMPT_ESCAPE}`."
             ),
         })
         return
@@ -133,6 +233,8 @@ def prompt(event: dict) -> None:
                 f"`{PROMPT_ESCAPE}`."
             ),
         })
+    elif unchecked:
+        emit({"systemMessage": IMAGE_UNCHECKED})
 
 
 WRITE_FIELDS = ("content", "new_string", "new_source")

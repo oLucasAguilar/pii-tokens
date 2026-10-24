@@ -479,6 +479,122 @@ scrub_token = pii.TOKEN_RE.search(scrubbed)
 check("pii-scrub replaces the value in an old transcript", scrub_cpf not in scrubbed and scrub_token is not None)
 check("pii-scrub keeps the value reversible", scrub_token is not None and pii.Vault(store=False).value_for(scrub_token.group(0)) == scrub_cpf)
 
+import image as image_module  # noqa: E402
+
+if image_module.available():
+    import base64
+    import io
+    import uuid
+
+    from PIL import Image, ImageDraw, ImageFont
+
+    def screenshot(value):
+        picture = Image.new("RGB", (700, 60), "white")
+        ImageDraw.Draw(picture).text((10, 20), f"2U29   Registered   {value}   R$ 35.294,00",
+                                     font=ImageFont.load_default(size=16), fill="black")
+        out = io.BytesIO()
+        picture.save(out, "PNG")
+        return out.getvalue()
+
+    def read_image(data):
+        return {"type": "image", "file": {"base64": base64.b64encode(data).decode(), "type": "image/png",
+                                          "originalSize": len(data), "dimensions": {"originalWidth": 700}}}
+
+    def digits_seen(data):
+        picture = Image.open(io.BytesIO(data))
+        enlarged = io.BytesIO()
+        picture.resize((picture.width * 3, picture.height * 3)).save(enlarged, "PNG")
+        return "".join(c for w in image_module._words(enlarged.getvalue()) for c in w["text"] if c.isdigit())
+
+    image_cnpj = fake_cnpj(5150)
+    formatted_cnpj = f"{image_cnpj[:2]}.{image_cnpj[2:5]}.{image_cnpj[5:8]}/{image_cnpj[8:12]}-{image_cnpj[12:]}"
+    with_cnpj = screenshot(formatted_cnpj)
+    check("image control: OCR reads the CNPJ in the test image", image_cnpj in digits_seen(with_cnpj))
+
+    out = json.loads(hook("post", {"tool_name": "Read", "tool_input": {"file_path": "/tmp/shot.png"},
+                                   "tool_response": read_image(with_cnpj)}))["hookSpecificOutput"]
+    masked_image = base64.b64decode(out["updatedToolOutput"]["file"]["base64"])
+    image_token = pii.Vault(store=False).token_for("CNPJ", image_cnpj)
+    check("Read of an image: the CNPJ is no longer readable in it", image_cnpj not in digits_seen(masked_image))
+    check("Read of an image: the output keeps the image shape",
+          out["updatedToolOutput"]["file"].keys() == read_image(with_cnpj)["file"].keys())
+    check("Read of an image: the note names the token", image_token in out["additionalContext"])
+    check("Read of an image: the token is reversible", pii.Vault(store=False).value_for(image_token) == image_cnpj)
+    check("Read of an image without personal data: untouched",
+          hook("post", {"tool_name": "Read", "tool_input": {}, "tool_response": read_image(screenshot("R$ 1.234,00"))}) == "")
+    broken = json.loads(hook("post", {"tool_name": "Read", "tool_input": {},
+                                      "tool_response": {"type": "image", "file": {"base64": "AAAA", "type": "image/png"}}}))
+    check("Read of an image that fails to mask: withheld as a blank image",
+          broken["hookSpecificOutput"]["updatedToolOutput"]["file"]["base64"] == hook_module.BLANK_PNG)
+
+    shot_b64 = base64.b64encode(with_cnpj).decode()
+    browser = [{"type": "text", "text": f"Screenshot of the page, customer {fake_cpf(77)}"},
+               {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": shot_b64}}]
+    out = json.loads(hook("post", {"tool_name": "mcp__playwright__browser_take_screenshot", "tool_input": {},
+                                   "tool_response": browser}))["hookSpecificOutput"]
+    masked_browser = out["updatedToolOutput"]
+    check("browser screenshot (MCP content blocks): the image is masked",
+          image_cnpj not in digits_seen(base64.b64decode(masked_browser[1]["source"]["data"])))
+    check("browser screenshot: the text next to it is masked too", fake_cpf(77) not in masked_browser[0]["text"])
+    check("browser screenshot: the shape is kept",
+          [b["type"] for b in masked_browser] == ["text", "image"] and masked_browser[1]["source"]["media_type"] == "image/png")
+    raw_mcp = {"content": [{"type": "image", "data": shot_b64, "mimeType": "image/png"}]}
+    out = json.loads(hook("post", {"tool_name": "mcp__other__shot", "tool_input": {}, "tool_response": raw_mcp}))
+    check("MCP image block with data and mimeType: masked",
+          image_cnpj not in digits_seen(base64.b64decode(out["hookSpecificOutput"]["updatedToolOutput"]["content"][0]["data"])))
+
+    no_ocr_bin = SANDBOX / "no-ocr-bin"
+    no_ocr_bin.mkdir()
+    for tool in ("git",):
+        if shutil.which(tool):
+            (no_ocr_bin / tool).symlink_to(shutil.which(tool))
+    no_ocr = subprocess.run([sys.executable, str(SCRIPTS / "hook.py"), "post"], capture_output=True, text=True,
+                            env={**os.environ, "PATH": str(no_ocr_bin)},
+                            input=json.dumps({"tool_name": "Read", "tool_input": {}, "tool_response": read_image(with_cnpj)})).stdout
+    check("without tesseract: Claude is told the image was not checked", hook_module.IMAGE_UNCHECKED in no_ocr)
+
+    session = str(uuid.uuid4())
+    project = SANDBOX / "claude-config" / "projects" / f"pii-tokens-test-{session[:8]}"
+    pasted_dir = Path(tempfile.gettempdir()) / f"claude-{os.getuid()}" / project.name / session / "images"
+    pasted_dir.mkdir(parents=True)
+    (pasted_dir / "1.png").write_bytes(with_cnpj)
+    (pasted_dir / "2.png").write_bytes(screenshot("R$ 1.234,00"))
+    pasted = {"session_id": session, "transcript_path": str(project / f"{session}.jsonl"), "cwd": str(SANDBOX)}
+    fake_bin = SANDBOX / "fake-clipboard"
+    fake_bin.mkdir()
+    clipboard = SANDBOX / "clipboard.txt"
+    for tool in ("wl-copy", "xclip", "pbcopy"):
+        (fake_bin / tool).write_text(f"#!/bin/sh\ncat > {clipboard}\n")
+        (fake_bin / tool).chmod(0o755)
+    real_path = os.environ["PATH"]
+    os.environ["PATH"] = f"{fake_bin}:{real_path}"
+    blocked_paste = hook("prompt", {**pasted, "prompt": "[Image #1] what is this?"})
+    check("pasted image with a CNPJ: prompt blocked, pointing to the file to read",
+          '"block"' in blocked_paste and str(pasted_dir / "1.png") in blocked_paste)
+    check("pasted image with a CNPJ: the read request, question included, goes to the clipboard",
+          clipboard.read_text() == f"Read {pasted_dir / '1.png'}. what is this?")
+    clipboard.unlink()
+    os.environ["CLAUDE_PLUGIN_OPTION_COPY_READ_REQUEST"] = "false"
+    check("copy_read_request off: still blocked, clipboard untouched",
+          '"block"' in hook("prompt", {**pasted, "prompt": "[Image #1]"}) and not clipboard.exists())
+    del os.environ["CLAUDE_PLUGIN_OPTION_COPY_READ_REQUEST"]
+    check("pasted image without personal data: prompt passes", hook("prompt", {**pasted, "prompt": "[Image #2] and this?"}) == "")
+    check("pasted image with the escape word: prompt passes", hook("prompt", {**pasted, "prompt": "[Image #1] pii-ok"}) == "")
+    os.environ["PATH"] = real_path
+
+    real_check = image_module.has_personal_data
+
+    def too_slow(data):
+        raise TimeoutError("deadline")
+
+    image_module.has_personal_data = too_slow
+    timed_out, _ = hook_module._pasted_images_to_block({**pasted, "prompt": "[Image #1] [Image #2]"})
+    image_module.has_personal_data = real_check
+    check("pasted images not checked in time: all blocked, none sent unchecked", len(timed_out) == 2)
+    shutil.rmtree(pasted_dir.parent.parent, ignore_errors=True)
+else:
+    print("skip image tests: tesseract or Pillow missing")
+
 import keyring  # noqa: E402
 
 for name in ("hmac", "vault"):

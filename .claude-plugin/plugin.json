@@ -1,7 +1,7 @@
 {
   "name": "pii-tokens",
   "displayName": "PII Tokens",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Masks CPF, CNPJ, email, phone and personal fields (table columns, JSON keys) in tool output before Claude sees them, with reversible tokens kept in an encrypted local vault.",
   "author": {
     "name": "Lucas Aguilar"

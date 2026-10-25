@@ -44,7 +44,7 @@ export PATH="$HOME/.claude/plugins/data/pii-tokens-pii-tokens/bin:$PATH"
 
 ## Configurações
 
-Todas opcionais. Pedidas quando o plugin é ativado, alteráveis depois com `claude plugin configure pii-tokens@pii-tokens`.
+Todas opcionais. Pedidas quando o plugin é ativado, alteráveis depois com `/plugin configure pii-tokens@pii-tokens` dentro do Claude Code.
 
 - **Domínios de email liberados:** domínios que ficam visíveis, como o da sua empresa.
 	- Já vêm liberados, sem configurar: `example.com`, `example.org` e os endereços `noreply` do GitHub.

@@ -364,6 +364,12 @@ check("IP: an IP with CPF check digits becomes an IP token", pii.mask_text(f"hos
 check("IP: the token gives the address back", pii.unmask_text(pii.mask_text("10.9.8.7", vault), vault) == "10.9.8.7")
 pii.MASK_IP = False
 
+# The same email or name in other cases shares one token; before, the 4th spelling raised and the output was suppressed.
+spellings = {pii.mask_text(e, vault) for e in ("caio@mail.test", "Caio@mail.test", "CAIO@mail.test", "caio@MAIL.test", "Caio@Mail.Test")}
+check("email: five spellings share one token", len(spellings) == 1)
+names = {vault.token_for("NAME", n) for n in ("Caio Prado", "CAIO PRADO", "caio prado", "Caio prado")}
+check("name: four spellings share one token", len(names) == 1)
+
 # A file named after an email keeps its extension.
 check("email: a file name keeps its extension", re.fullmatch(r"\./EMAIL#[0-9a-f]{12}\.txt", pii.mask_text("./ana.silva@mail.test.txt", vault)) is not None)
 check("email: the same address with and without the extension", pii.mask_text("ana.silva@mail.test.txt", vault)[:-4] == pii.mask_text("ana.silva@mail.test", vault))

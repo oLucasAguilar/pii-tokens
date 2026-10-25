@@ -43,7 +43,7 @@ O valor real só é usado com a sua confirmação.
 + CPF CPF#3f1a9c0d22e4, contato EMAIL#91bd0e4a7c13. Falou com a Maria.
 ```
 
-Nome solto no texto passa: troque por um apelido.
+Nome solto no texto passa: troque por um apelido, ou ponha o nome na lista de termos.
 
 **Ferramentas do Claude**, como Jira, Notion, um CRM ou uma API interna
 
@@ -85,6 +85,8 @@ Comandos e configurações: [docs/usage.md](docs/usage.md).
 | Email, fora dos domínios que você liberar | `EMAIL#` |
 | Telefone brasileiro | `PHONE#` |
 | Colunas de nome, contato e documento (tabela, CSV, JSON) | `NAME#`, `CONTACT#`, `DOC#` |
+| Termos que você listar, como o nome de um cliente | `TERM#` |
+| IP, se você ligar a opção | `IP#` |
 
 ## Limites
 
@@ -92,7 +94,7 @@ Protege contra vazamento por descuido, não contra um modelo decidido a extrair 
 
 Passam sem máscara:
 
-- nome em texto livre;
+- nome em texto livre, fora da lista de termos;
 - comando que falha e comando com `!`;
 - chave, senha e token de API (o plugin cuida de dado pessoal).
 

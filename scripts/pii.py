@@ -64,9 +64,11 @@ TABLE_TOOLS = _option("table_tools", ())
 ALLOWED_TOKENS = frozenset(_option("allowed_tokens", ()))
 DEV_TOOL_NAMES = _option("dev_tool_names", False)
 COPY_READ_REQUEST = _option("copy_read_request", True)
+TERMS = _option("terms", ())
+MASK_IP = _option("mask_ip", False)
 
 TOKEN_RE = re.compile(
-    r"\b(CPF|CNPJ|EMAIL|PHONE|NAME|CONTACT|DOC|TEL|NOME|CONTATO)#"
+    r"\b(CPF|CNPJ|EMAIL|PHONE|NAME|CONTACT|DOC|TERM|IP|TEL|NOME|CONTATO)#"
     r"([0-9a-f]{24}|[0-9a-f]{16}|[0-9a-f]{12}|[0-9a-f]{8}|\?{8})(?![0-9a-f])"
 )
 
@@ -82,7 +84,13 @@ AREA_CODES = frozenset(
     "61 62 63 64 65 66 67 68 69 71 73 74 75 77 79 81 82 83 84 85 86 87 88 89 91 92 93 94 95 96 97 98 99".split()
 )
 PHONE_RE = re.compile(r"(?<![\w])(?:\+55\s?)?\(\d{2}\)\s?9?\d{4}-?\d{4}(?!\d)|(?<![\w])\+55\s?\d{2}\s?9?\d{4}-?\d{4}(?!\d)")
-EMAIL_RE = re.compile(r"(?<![\w.+-])([\w.+-]+)@([\w-]+(?:\.[\w-]+)+)")
+# A file named after an email keeps its extension out of the token: "ana@mail.test.txt" masks "ana@mail.test".
+FILE_EXTENSIONS = r"txt|pdf|csv|tsv|json|xml|log|xlsx?|docx?|png|jpe?g|gif|eml|html?|ya?ml|ovpn|gz|tar|bak"
+EMAIL_RE = re.compile(
+    r"(?<![\w.+-])([\w.+-]+)@([\w-]+(?:\.[\w-]+)+?)"
+    rf"(?=\.(?:{FILE_EXTENSIONS})(?![\w.-])|(?![\w-]|\.[\w-]))",
+    re.IGNORECASE,
+)
 SSH_USERS = ("git",)
 
 NOT_PERSONAL_COLUMN = re.compile(
@@ -202,6 +210,13 @@ def _looks_like_timestamp(value: str) -> bool:
 # Keys and vault
 # ---------------------------------------------------------------------------
 
+def _normalized(kind: str, value: str) -> str:
+    if kind in ("CPF", "CNPJ"):
+        return _document(value)
+    # A term keeps its spelling: "Zorb" and "ZORB" are two tokens, each giving back what was written.
+    return value.strip() if kind == "TERM" else value.strip().lower()
+
+
 class Vault:
     def __init__(self, store: bool = True):
         self.store = store
@@ -246,7 +261,7 @@ class Vault:
         return self._db
 
     def _digest(self, kind: str, value: str) -> str:
-        normalized = _document(value) if kind in ("CPF", "CNPJ") else value.strip().lower()
+        normalized = _normalized(kind, value)
         return hmac.new(self.hmac_key, f"{kind}:{normalized}".encode(), hashlib.sha256).hexdigest()
 
     def is_allowed(self, kind: str, value: str) -> bool:
@@ -261,9 +276,8 @@ class Vault:
     def token_for(self, kind: str, value: str) -> str:
         if self.hmac_key is None:
             return f"{kind}#????????"
-        normalized = _document(value) if kind in ("CPF", "CNPJ") else value.strip().lower()
         digest = self._digest(kind, value)
-        stored = normalized if kind in ("CPF", "CNPJ") else value.strip()
+        stored = _document(value) if kind in ("CPF", "CNPJ") else value.strip()
         for size in TOKEN_SIZES:
             token = f"{kind}#{digest[:size]}"
             if not self.store:
@@ -371,7 +385,57 @@ def mask_text(text: str, vault: Vault) -> str:
     text = DIGITS_11.sub(cpf, text)
     text = PHONE_RE.sub(lambda m: vault.mask("PHONE", m.group(0)), text)
     text = PHONE_BARE_AREA_CODE.sub(bare_phone, text)
-    return EMAIL_RE.sub(email, text)
+    text = EMAIL_RE.sub(email, text)
+    if MASK_IP:
+        text = _outside_tokens(text, IPV4_RE, lambda m: vault.mask("IP", m.group(0)) if _personal_ip(m.group(0)) else m.group(0))
+    if TERM_RE:
+        text = _outside_tokens(text, TERM_RE, lambda m: vault.mask("TERM", m.group(0)))
+    return text
+
+
+TERM_SEPARATOR = r"[._-]?"
+TERM_SPACE = r"[\s._-]?"
+SHORT_TERM = 6
+_ACCENTED: dict[str, str] = {}
+for _cp in range(0xC0, 0x250):
+    _base = unicodedata.normalize("NFD", chr(_cp))[0].lower()
+    if _base.isascii() and _base.isalpha() and chr(_cp).lower() != _base:
+        _ACCENTED[_base] = _ACCENTED.get(_base, "") + chr(_cp).lower()
+
+
+def _term_pattern(term: str) -> str:
+    """Any case, accents optional; a long term also with a separator between letters and inside other words."""
+    chars = [c for c in unicodedata.normalize("NFD", term.strip()) if not unicodedata.combining(c)]
+    words = [[f"[{c.lower()}{_ACCENTED[c.lower()]}]" if c.lower() in _ACCENTED else re.escape(c) for c in word if c not in "._-"]
+             for word in "".join(chars).split()]
+    if sum(c.isalnum() for c in chars) < SHORT_TERM:
+        # A short term is usually a first name: whole word only, or "Ana" would be found inside "banana".
+        return rf"(?<![^\W_]){TERM_SPACE.join(''.join(w) for w in words)}(?![^\W_])"
+    # A space between letters only where the term has one: "serasa" must not match "será salvo".
+    return TERM_SPACE.join(TERM_SEPARATOR.join(w) for w in words)
+
+
+def compile_terms(terms) -> re.Pattern | None:
+    patterns = [_term_pattern(t) for t in sorted({str(t).strip() for t in terms if str(t).strip()}, key=len, reverse=True)]
+    return re.compile("|".join(p for p in patterns if p), re.IGNORECASE) if patterns else None
+
+
+TERM_RE = compile_terms(TERMS)
+IPV4_RE = re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w-]|\.\d)")
+KEPT_IPS = re.compile(r"127\.|0\.0\.0\.0$|255\.255\.")
+
+
+def _personal_ip(value: str) -> bool:
+    return all(int(octet) <= 255 for octet in value.split(".")) and not KEPT_IPS.match(value)
+
+
+def _outside_tokens(text: str, pattern: re.Pattern, replace) -> str:
+    """Substitute only between tokens, so a term never matches inside a token's hex."""
+    parts, last = [], 0
+    for m in TOKEN_RE.finditer(text):
+        parts += [pattern.sub(replace, text[last : m.start()]), m.group(0)]
+        last = m.end()
+    return "".join(parts) + pattern.sub(replace, text[last:])
 
 
 def unmask_text(text: str, vault: Vault) -> str:

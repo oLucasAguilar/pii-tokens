@@ -14,7 +14,8 @@ Isto protege contra exposição acidental, não contra um modelo tentando extrai
 - **Comando que falha chega cru ao modelo.**
 	- O hook que o Claude Code dispara na falha não consegue trocar a saída.
 	- Pedido em [anthropics/claude-code#97278](https://github.com/anthropics/claude-code/issues/97278).
-- **Nome em texto livre não é detectado:** corpo de issue, página web, linha de log.
+- **Nome em texto livre não é detectado:** corpo de issue, página web, linha de log. Só o que estiver na lista de termos.
+- **Termo da lista digitado no prompt passa.** O prompt só é barrado por CPF, CNPJ, telefone e email.
 - **Algumas formas de documento não são detectadas:**
 	- telefone escrito como 11 dígitos corridos, a não ser em coluna de telefone
 	- CPF colado em letras, como `doc` seguido dos dígitos
@@ -50,6 +51,8 @@ A máscara é estrita por padrão. Isso custa quando o que está na tela não é
 - **Cerca de 1 em cada 100 números aleatórios de 11 ou 14 dígitos vira token.**
 	- Eles passam no dígito verificador de CPF ou CNPJ: número de protocolo, telefone sem pontuação, trecho de código de barras.
 	- Rode pelo `pii-exec` o comando que precisa do número.
+- **Termo que também é palavra de código** (`max`, `atlas`) mascara o código junto.
+- **Termo em nome de arquivo ou de host:** o Claude vê `TERM#...` e não consegue abrir nem editar pelo nome que viu. Rode o comando pelo `pii-exec`, que pede a sua confirmação.
 - **Cada chamada de ferramenta paga um processo Python.**
 	- Cerca de 0,3 s para mascarar e 0,04 s para a checagem de escrita, medidos num notebook.
 

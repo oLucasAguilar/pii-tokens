@@ -1,7 +1,7 @@
 {
   "name": "pii-tokens",
   "displayName": "PII Tokens",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Masks CPF, CNPJ, email, phone and personal fields (table columns, JSON keys) in tool output before Claude sees them, with reversible tokens kept in an encrypted local vault.",
   "author": {
     "name": "Lucas Aguilar"
@@ -55,6 +55,20 @@
       "title": "Copy the read request to the clipboard",
       "description": "When a pasted image with personal data blocks the prompt, copy the message that asks Claude to read it (and so masks it) to the clipboard, ready to paste. Replaces what the clipboard held. On by default.",
       "default": true
+    },
+    "terms": {
+      "type": "string",
+      "multiple": true,
+      "sensitive": true,
+      "title": "Terms to mask",
+      "description": "Words you decide are sensitive, such as a client's company name, one per entry. Matched in any case, with or without accents; terms of 6 letters or more also inside other words (domains, file names) and with a separator between letters. Become TERM# tokens. Empty by default.",
+      "default": []
+    },
+    "mask_ip": {
+      "type": "boolean",
+      "title": "Mask IP addresses",
+      "description": "Replace IPv4 addresses with IP# tokens. 127.x, 0.0.0.0 and 255.255.x are kept. Off by default: server IPs in dev logs are common.",
+      "default": false
     }
   },
   "license": "MIT"

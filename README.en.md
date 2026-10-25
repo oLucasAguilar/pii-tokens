@@ -40,7 +40,7 @@ The real value is used only after you confirm.
 + CPF CPF#3f1a9c0d22e4, contact EMAIL#91bd0e4a7c13. Spoke with Maria.
 ```
 
-A bare name in free text gets through: swap it for a nickname.
+A bare name in free text gets through: swap it for a nickname, or add it to the term list.
 
 **Claude's tools**, like Jira, Notion, a CRM or an internal API
 
@@ -76,6 +76,8 @@ Commands and settings: [docs/usage.en.md](docs/usage.en.md).
 | Email, outside the domains you allow | `EMAIL#` |
 | Brazilian phone numbers | `PHONE#` |
 | Name, contact and document columns (table, CSV, JSON) | `NAME#`, `CONTACT#`, `DOC#` |
+| Terms you list, such as a client's name | `TERM#` |
+| IP addresses, if you turn the option on | `IP#` |
 
 ## Limits
 
@@ -83,7 +85,7 @@ It protects against accidental leaks, not against a model set on extracting the 
 
 These get through unmasked:
 
-- names in free text;
+- names in free text outside the term list;
 - failing commands and `!` commands;
 - keys, passwords and API tokens (the plugin handles personal data).
 

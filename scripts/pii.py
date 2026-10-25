@@ -290,7 +290,8 @@ class Vault:
                 )
                 self.db.commit()
                 return token
-            if existing == stored:
+            # Same value in another case ("Bia@x" after "bia@x") reuses the token; a term keeps one per spelling.
+            if existing == stored or (kind != "TERM" and existing.lower() == stored.lower()):
                 return token
         raise RuntimeError(f"token collision at every size for {kind}")
 

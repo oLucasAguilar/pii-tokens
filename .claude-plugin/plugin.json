@@ -40,14 +40,14 @@
       "type": "string",
       "multiple": true,
       "title": "Readable fields",
-      "description": "Fields that hold no person's name, as tool:path. Example: mcp__monday__:**.items[].name keeps Monday card titles. A CPF, CNPJ, email or phone inside the field is still masked. Empty by default.",
+      "description": "Fields that hold no person's name, as tool:path. Example: mcp__tracker__:**.items[].name keeps task titles. A CPF, CNPJ, email or phone inside the field is still masked. Empty by default.",
       "default": []
     },
     "masked_fields": {
       "type": "string",
       "multiple": true,
       "title": "Masked fields",
-      "description": "Fields that hold personal data although their name does not say so, as tool:path. Example: mcp__monday__:**.column_values[id=text_abc123].text masks one Monday column. Wins over readable fields. Empty by default.",
+      "description": "Fields that hold personal data although their name does not say so, as tool:path. Example: mcp__tracker__:**.column_values[id=text_abc123].text masks one column. Wins over readable fields. Empty by default.",
       "default": []
     },
     "copy_read_request": {

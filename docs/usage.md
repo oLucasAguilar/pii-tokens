@@ -51,25 +51,25 @@ Todas opcionais. Pedidas quando o plugin é ativado, alteráveis depois com `cla
 - **Ferramentas que devolvem tabela:** prefixos de ferramentas MCP que devolvem tabela no formato do psql.
 	- Exemplo: `mcp__postgres__`.
 	- As colunas delas são mascaradas pelo nome (`nome`, `razao_social`, `email`, ...).
-- **Copiar o pedido de leitura:** ligada por padrão. Quando um print colado é barrado, a mensagem que pede a leitura do arquivo vai para a área de transferência, no lugar do que estava lá.
+- **Copiar o pedido de leitura:** ligada por padrão. Quando uma imagem colada é barrada, a mensagem que pede a leitura do arquivo vai para a área de transferência, no lugar do que estava lá.
 - **Manter nomes de ferramenta de dev:** desligada por padrão. Veja [Efeitos colaterais](limits.md#efeitos-colaterais).
 - **Campos legíveis:** campos que você sabe que não guardam nome de pessoa, numa ferramenta só. Formato `ferramenta:caminho`.
-	- Exemplo, para ler o título dos cards no MCP do Monday: `mcp__monday__:**.items[].name`, `mcp__monday__:**.subitems[].name`, `mcp__monday__:**.boards[].name`.
+	- Exemplo, para ler o título das tarefas num MCP de gestão de tarefas: `mcp__tracker__:**.items[].name`, `mcp__tracker__:**.subitems[].name`, `mcp__tracker__:**.boards[].name`.
 	- `**.` casa qualquer começo de caminho.
 	- CPF, CNPJ, email e telefone escritos dentro do campo continuam virando token.
-	- A regra vale para a ferramenta inteira. Se a mesma conta tem um board de clientes, o título dos cards dele, que costuma ser o nome do cliente, também sai.
-	- `[chave=valor]` antes do último campo filtra pelo vizinho: `mcp__monday__:**.column_values[type=people].text` libera só a coluna de pessoas, não as colunas de texto.
+	- A regra vale para a ferramenta inteira. Se a mesma conta tem um quadro de clientes, o título das tarefas dele, que costuma ser o nome do cliente, também sai.
+	- `[chave=valor]` antes do último campo filtra pelo vizinho: `mcp__tracker__:**.column_values[type=people].text` libera só a coluna de pessoas, não as colunas de texto.
 - **Campos mascarados:** o contrário, para campo que guarda dado pessoal sem que o nome dele diga. Mesmo formato.
-	- Exemplo, para uma coluna "Cliente" do Monday: `mcp__monday__:**.column_values[id=text_abc123].text`. O id da coluna aparece em `get_board_info`.
-	- ⚠️ Cada ferramenta do mesmo MCP pode devolver outro formato. No Monday, o `all_api_read` traz as colunas como lista (a regra acima) e o `get_board_items_page` como mapa: para ele, `mcp__monday__:**.column_values.text_abc123`. Ponha as duas, e confira com a resposta real antes de confiar.
-	- O nome do board vem em `boards[].name` numa ferramenta e em `board.name` na outra.
-	- O valor vira token, e o mesmo cliente tem sempre o mesmo token, então dá para cruzar cards sem ver o nome.
+	- Exemplo, para uma coluna "Cliente": `mcp__tracker__:**.column_values[id=text_abc123].text`. O id da coluna aparece na resposta da ferramenta.
+	- ⚠️ Cada ferramenta do mesmo MCP pode devolver outro formato. Uma pode trazer as colunas como lista (a regra acima) e outra como mapa: para ela, `mcp__tracker__:**.column_values.text_abc123`. Ponha as duas, e confira com a resposta real antes de confiar.
+	- O nome do quadro pode vir em `boards[].name` numa ferramenta e em `board.name` na outra.
+	- O valor vira token, e o mesmo cliente tem sempre o mesmo token, então dá para cruzar tarefas sem ver o nome.
 	- Se um campo cair nas duas listas, ele é mascarado.
 
 ## Notas sobre os comandos
 
 - **O `pii-exec` mascara a saída de novo,** então o valor real nunca volta para o Claude.
-- **Todo `pii-exec` com token pede a sua confirmação,** inclusive no modo auto. Leia o comando: um `curl` ou outro comando de rede mandaria o dado real para fora, e uma página ou um card podem tentar induzir o Claude a isso.
+- **Todo `pii-exec` com token pede a sua confirmação,** inclusive no modo auto. Leia o comando: um `curl` ou outro comando de rede mandaria o dado real para fora, e uma página ou uma tarefa podem tentar induzir o Claude a isso.
 	- Enquanto o comando roda, o valor real aparece na lista de processos (`ps`).
 - **O `pii-reveal` abre a cópia no seu editor,** fora do alcance do Claude.
 - **O `pii-allow` é para valor que pode ir:** o CNPJ da sua empresa, o seu próprio email no `git log`.

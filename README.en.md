@@ -2,7 +2,12 @@
 
 **Personal data out of Claude's context.**
 
-A Claude Code plugin. It swaps Brazilian personal data (CPF, CNPJ), email and phone numbers for tokens before Claude reads them. Same value, same token: Claude can still count, join and compare. The real value stays in an encrypted vault on your machine.
+A Claude Code plugin. Before Claude reads them, it swaps for tokens:
+
+- Brazilian IDs (CPF, CNPJ), email and phone numbers.
+
+- Same value, same token: Claude can still count, join and compare.
+- The real value stays in an encrypted vault on your machine.
 
 ![Claude reads a CSV with names, CPFs and emails and gets tokens; a CPF pasted into the prompt is blocked (screen in Portuguese)](docs/demo.gif)
 
@@ -15,15 +20,20 @@ A Claude Code plugin. It swaps Brazilian personal data (CPF, CNPJ), email and ph
 /plugin install pii-tokens@pii-tokens
 ```
 
-Restart and ask Claude to "run `pii-selfcheck`". It must end with `all good`. Linux or macOS, Python 3.10+.
+1. Restart Claude Code.
+2. Ask Claude to "run `pii-selfcheck`". It must end with `all good`.
+
+Needs Linux or macOS and Python 3.10+. Images also need `tesseract`.
 
 ## In practice
 
-**A database query, and the real value only after you confirm**
+**A database query**
+
+The real value is used only after you confirm.
 
 ![The query returns company names and CNPJs and Claude gets tokens; pii-exec asks for confirmation before using the real value (screen in Portuguese)](docs/demo-banco.gif)
 
-**A support ticket saved to a file**
+**Text in a file**, like a note or an email
 
 ```diff
 - CPF <real CPF>, contact <real email>. Spoke with Maria.
@@ -32,24 +42,29 @@ Restart and ask Claude to "run `pii-selfcheck`". It must end with `all good`. Li
 
 A bare name in free text gets through: swap it for a nickname.
 
-**A Monday board:** you choose what stays readable
+**Claude's tools**, like Jira, Notion, a CRM or an internal API
+
+You choose which fields stay readable.
 
 ```diff
-  name: "Boleto not settled"        assignee: "A Teammate"
-- client: "Padaria Exemplo LTDA"
+  title: "Login error"               assignee: "A Teammate"
+- client: "Acme Comercio Ltda"
 + client: "NAME#25aaae7143ac"
 ```
+
+**Images**
+
+- The hook reads the image text before Claude sees it, and draws tokens over the values.
+- A pasted image with personal data blocks the message:
+	- a `Read <file>` request lands in your clipboard;
+	- paste it and send.
 
 **When you need the real value**
 
 ```bash
-pii-exec -- grep CPF#3f1a9c0d22e4 app.log   # runs with the real CPF; the output comes back masked
+pii-exec -- grep CPF#3f1a9c0d22e4 app.log   # uses the real CPF; the output comes back masked
 pii-reveal report.md                        # opens the real version in your editor, away from Claude
 ```
-
-**Screenshots**
-
-An image Claude reads, from a file or the browser, arrives with the token drawn over the CPF and CNPJ. A screenshot pasted into the message is blocked, and the request to read the file goes to your clipboard: paste and send. Needs `tesseract`.
 
 Commands and settings: [docs/usage.en.md](docs/usage.en.md).
 
@@ -66,13 +81,25 @@ Commands and settings: [docs/usage.en.md](docs/usage.en.md).
 
 It protects against accidental leaks, not against a model set on extracting the data.
 
-- Names in free text, failing commands and `!` commands get through.
+These get through unmasked:
+
+- names in free text;
+- failing commands and `!` commands;
+- keys, passwords and API tokens (the plugin handles personal data).
+
+Also:
+
 - In images, OCR finds almost every CPF and CNPJ, not all of them.
-- Keys, passwords and API tokens get through: the plugin handles personal data.
 - A token is a pseudonym, not anonymous.
 
 Full list, before using it with real data: [docs/limits.en.md](docs/limits.en.md).
 
 ## What about the others?
 
-On 2026-10-22 we found no other tool that swaps data for a reversible token, understands Brazilian documents and runs inside Claude Code. Comparison: [docs/alternatives.md](docs/alternatives.md).
+On 2026-10-22 we found no other tool that:
+
+- swaps data for a reversible token;
+- understands Brazilian documents;
+- runs inside Claude Code.
+
+Comparison: [docs/alternatives.md](docs/alternatives.md).

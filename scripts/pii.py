@@ -407,7 +407,7 @@ _FIELD_FILTER = re.compile(r"(.*)\[([^\]=]+)=([^\]]*)\](\.[^.\[\]]+)")
 
 
 def parse_field_rules(rules) -> tuple:
-    """Rules look like "mcp__monday__:**.items[].name": a tool name prefix, then a field path.
+    """Rules look like "mcp__tracker__:**.items[].name": a tool name prefix, then a field path.
 
     "[key=value]" before the last field keeps only objects where that key holds that value,
     as in "**.column_values[type=people].text".
@@ -450,7 +450,7 @@ def is_tool_name_field(document, path: str, value: str) -> bool:
 
 
 def _is_people_text(column: dict, key, item) -> bool:
-    # Monday returns a people column as {"type": "people", "text": "Name One, Name Two"}.
+    # Task trackers return a people column as {"type": "people", "text": "Name One, Name Two"}.
     return key == "text" and column.get("type") == "people" and isinstance(item, str) and bool(item.strip())
 
 

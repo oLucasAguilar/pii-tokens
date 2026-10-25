@@ -219,8 +219,8 @@ check("prompt with CPF blocked", '"block"' in hook("prompt", {"prompt": f"cpf {c
 check("prompt with pii-ok passes", hook("prompt", {"prompt": f"pii-ok {cpf_formatted}"}) == "")
 check("prompt with a formatted phone blocked", '"block"' in hook("prompt", {"prompt": "call (11) 98765-4321 today"}))
 check("prompt with a phone and area code blocked", '"block"' in hook("prompt", {"prompt": "call 11 98765-4321 today"}))
-check("prompt with an 11-digit order number passes",
-      not pii.valid_cpf("12345678901") and hook("prompt", {"prompt": "order 12345678901 shipped"}) == "")
+check("prompt with an 11-digit ticket number passes",
+      not pii.valid_cpf("12345678901") and hook("prompt", {"prompt": "ticket 12345678901 closed"}) == "")
 check("prompt naming the PHONE# token passes", hook("prompt", {"prompt": "tokens look like PHONE#de9c75a6dc05"}) == "")
 
 with tempfile.TemporaryDirectory() as tmp:
@@ -250,38 +250,38 @@ check("dev tool names: a plain person record is still masked", "Maria" not in pi
 check("dev tool names: tool names next to a masked person are kept", "clientes" in pii.mask_json(forged[3], vault) and "relatorio" in pii.mask_json(forged[4], vault))
 pii.DEV_TOOL_NAMES = False
 
-monday = json.dumps({"data": {"boards": [{"id": "1", "name": "Dev tasks", "items_page": {"items": [
+tracker = json.dumps({"data": {"boards": [{"id": "1", "name": "Dev tasks", "items_page": {"items": [
     {"id": "2", "name": "Handle return outcomes", "subitems": [{"id": "3", "name": "Write the spec"}],
      "updates": [{"id": "4", "creator": {"name": "Maria Silva"}, "text_body": "done"}]},
     {"id": "5", "name": f"Refund {cpf_formatted}"},
 ]}}]}})
 items_page = json.dumps({"items": [{"id": "2", "name": "Handle return outcomes"}]})
-monday_rules = ("mcp__monday__:**.items[].name", "mcp__monday__:**.subitems[].name", "mcp__monday__:**.boards[].name")
+tracker_rules = ("mcp__tracker__:**.items[].name", "mcp__tracker__:**.subitems[].name", "mcp__tracker__:**.boards[].name")
 check("readable fields: strict by default, a task title is masked",
-      "Handle return" not in pii.mask_json(monday, vault, tool="mcp__monday__all_api_read"))
-pii.READABLE_FIELDS = pii.parse_field_rules(monday_rules)
-readable = pii.mask_json(monday, vault, tool="mcp__monday__all_api_read")
+      "Handle return" not in pii.mask_json(tracker, vault, tool="mcp__tracker__all_api_read"))
+pii.READABLE_FIELDS = pii.parse_field_rules(tracker_rules)
+readable = pii.mask_json(tracker, vault, tool="mcp__tracker__all_api_read")
 check("readable fields: board, item and subitem titles are kept",
       all(t in readable for t in ("Dev tasks", "Handle return outcomes", "Write the spec")))
 check("readable fields: the path matches at any depth",
-      "Handle return" in pii.mask_json(items_page, vault, tool="mcp__monday__get_board_items_page"))
+      "Handle return" in pii.mask_json(items_page, vault, tool="mcp__tracker__get_board_items_page"))
 check("readable fields: a CPF inside a kept title is still masked", cpf_formatted not in readable and "Refund CPF#" in readable)
 check("readable fields: a person outside the listed paths is still masked", "Maria Silva" not in readable)
 check("readable fields: another tool with the same shape is still masked",
-      "Handle return" not in pii.mask_json(monday, vault, tool="mcp__other__read"))
+      "Handle return" not in pii.mask_json(tracker, vault, tool="mcp__other__read"))
 check("readable fields: a rule without a tool is ignored", pii.parse_field_rules(("**.items[].name",)) == ())
 pii.READABLE_FIELDS = ()
-os.environ["CLAUDE_PLUGIN_OPTION_READABLE_FIELDS"] = json.dumps(monday_rules)
-from_hook = hook("post", {"tool_name": "mcp__monday__all_api_read", "tool_response": [{"type": "text", "text": monday}]})
+os.environ["CLAUDE_PLUGIN_OPTION_READABLE_FIELDS"] = json.dumps(tracker_rules)
+from_hook = hook("post", {"tool_name": "mcp__tracker__all_api_read", "tool_response": [{"type": "text", "text": tracker}]})
 del os.environ["CLAUDE_PLUGIN_OPTION_READABLE_FIELDS"]
 check("readable fields: the hook keeps a listed title and masks the person", "Handle return outcomes" in from_hook and "Maria Silva" not in from_hook)
 
 people = lambda text: json.dumps({"items": [{"id": "1", "column_values": [
     {"id": "person", "type": "people", "text": text}, {"id": "status", "type": "status", "text": "Done"}]}]})
-two = pii.mask_json(people("Maria Silva, Joao Souza"), vault, tool="mcp__monday__all_api_read")
-one = pii.mask_json(people("Maria Silva"), vault, tool="mcp__monday__all_api_read")
+two = pii.mask_json(people("Maria Silva, Joao Souza"), vault, tool="mcp__tracker__all_api_read")
+one = pii.mask_json(people("Maria Silva"), vault, tool="mcp__tracker__all_api_read")
 check("people column: every person is masked", "Maria" not in two and "Joao" not in two)
-check("people column: each person keeps one token across cards", json.loads(one)["items"][0]["column_values"][0]["text"] in two)
+check("people column: each person keeps one token across tasks", json.loads(one)["items"][0]["column_values"][0]["text"] in two)
 check("people column: other columns are kept", '"Done"' in two)
 record = '{"id": 1, "name": "Maria Silva"}'
 check("JSON after a label is masked by key", "Maria" not in pii.mask_json(f"Result: {record}", vault))
@@ -295,8 +295,8 @@ check("NDJSON is masked by key, line by line", "Maria" not in pii.mask_json(ndjs
 check("deep nesting inside text does not break masking", cpf not in pii.mask_json("x\n" + "[\n" * 5000 + cpf, vault))
 code = "function f(x) { return { name: x } }\nconst a = [1, 2]"
 check("code with braces is left alone", pii.mask_json(code, vault) == code)
-pii.READABLE_FIELDS = pii.parse_field_rules(("mcp__monday__:**.column_values[].text",))
-check("people column: a readable rule keeps the names", "Maria Silva" in pii.mask_json(people("Maria Silva"), vault, tool="mcp__monday__x"))
+pii.READABLE_FIELDS = pii.parse_field_rules(("mcp__tracker__:**.column_values[].text",))
+check("people column: a readable rule keeps the names", "Maria Silva" in pii.mask_json(people("Maria Silva"), vault, tool="mcp__tracker__x"))
 pii.READABLE_FIELDS = ()
 
 board = lambda client: json.dumps({"items": [{"id": "1", "column_values": [
@@ -304,43 +304,43 @@ board = lambda client: json.dumps({"items": [{"id": "1", "column_values": [
     {"id": "text_client", "type": "text", "text": client},
     {"id": "text_note", "type": "text", "text": "call back friday"}]}]})
 column_text = lambda out, column: next(c["text"] for c in json.loads(out)["items"][0]["column_values"] if c["id"] == column)
-pii.READABLE_FIELDS = pii.parse_field_rules(("mcp__monday__:**.column_values[type=people].text",))
-kept = pii.mask_json(board("Acme Comercio Ltda"), vault, tool="mcp__monday__x")
+pii.READABLE_FIELDS = pii.parse_field_rules(("mcp__tracker__:**.column_values[type=people].text",))
+kept = pii.mask_json(board("Acme Comercio Ltda"), vault, tool="mcp__tracker__x")
 check("field filter: [type=people] keeps the person", column_text(kept, "person") == "Maria Silva")
-pii.READABLE_FIELDS = pii.parse_field_rules(("mcp__monday__:**.column_values[].text",))
-pii.MASKED_FIELDS = pii.parse_field_rules(("mcp__monday__:**.column_values[id=text_client].text",))
-first = pii.mask_json(board("Acme Comercio Ltda"), vault, tool="mcp__monday__x")
-second = pii.mask_json(board("Acme Comercio Ltda"), vault, tool="mcp__monday__y")
+pii.READABLE_FIELDS = pii.parse_field_rules(("mcp__tracker__:**.column_values[].text",))
+pii.MASKED_FIELDS = pii.parse_field_rules(("mcp__tracker__:**.column_values[id=text_client].text",))
+first = pii.mask_json(board("Acme Comercio Ltda"), vault, tool="mcp__tracker__x")
+second = pii.mask_json(board("Acme Comercio Ltda"), vault, tool="mcp__tracker__y")
 check("masked fields: the listed column becomes a token", column_text(first, "text_client").startswith("NAME#"))
 check("masked fields: the same client gets the same token", column_text(first, "text_client") == column_text(second, "text_client"))
 check("masked fields: masking wins over a readable rule", "Acme" not in first)
 check("masked fields: other columns are kept", column_text(first, "text_note") == "call back friday")
 check("masked fields: another tool is not affected", "Acme" in pii.mask_json(board("Acme Comercio Ltda"), vault, tool="mcp__other__x"))
 pii.READABLE_FIELDS = pii.MASKED_FIELDS = ()
-os.environ["CLAUDE_PLUGIN_OPTION_MASKED_FIELDS"] = "mcp__monday__:**.column_values[id=text_client].text"
-from_hook = hook("post", {"tool_name": "mcp__monday__all_api_read", "tool_response": [{"type": "text", "text": board("Acme Comercio Ltda")}]})
+os.environ["CLAUDE_PLUGIN_OPTION_MASKED_FIELDS"] = "mcp__tracker__:**.column_values[id=text_client].text"
+from_hook = hook("post", {"tool_name": "mcp__tracker__all_api_read", "tool_response": [{"type": "text", "text": board("Acme Comercio Ltda")}]})
 del os.environ["CLAUDE_PLUGIN_OPTION_MASKED_FIELDS"]
 check("masked fields: the hook reads the option", "Acme" not in from_hook and "call back friday" in from_hook)
 
-# get_board_items_page (Monday MCP) returns column_values as a map keyed by column id, not a list.
+# Some tools return column_values as a map keyed by column id, not a list.
 flat_board = json.dumps({"board": {"id": "1", "name": "Dev tasks"}, "items": [{"id": "2", "name": "Handle return outcomes",
     "column_values": {"person": "Maria Silva", "text_client": "Acme Comercio Ltda", "status": "Done"}}]})
-pii.MASKED_FIELDS = pii.parse_field_rules(("mcp__monday__:**.column_values[id=text_client].text",))
+pii.MASKED_FIELDS = pii.parse_field_rules(("mcp__tracker__:**.column_values[id=text_client].text",))
 check("map-shaped columns: a list-shaped rule does not reach them (the 22/10 leak)",
-      "Acme" in pii.mask_json(flat_board, vault, tool="mcp__monday__get_board_items_page"))
-pii.MASKED_FIELDS = pii.parse_field_rules(("mcp__monday__:**.column_values.text_client",))
-pii.READABLE_FIELDS = pii.parse_field_rules(("mcp__monday__:**.board.name", "mcp__monday__:**.items[].name"))
-flat_out = pii.mask_json(flat_board, vault, tool="mcp__monday__get_board_items_page")
+      "Acme" in pii.mask_json(flat_board, vault, tool="mcp__tracker__get_board_items_page"))
+pii.MASKED_FIELDS = pii.parse_field_rules(("mcp__tracker__:**.column_values.text_client",))
+pii.READABLE_FIELDS = pii.parse_field_rules(("mcp__tracker__:**.board.name", "mcp__tracker__:**.items[].name"))
+flat_out = pii.mask_json(flat_board, vault, tool="mcp__tracker__get_board_items_page")
 check("map-shaped columns: a map-shaped rule masks the client", "Acme" not in flat_out and "NAME#" in flat_out)
 check("map-shaped columns: board.name and item titles are kept", "Dev tasks" in flat_out and "Handle return outcomes" in flat_out)
 check("map-shaped columns: other columns are kept", '"Done"' in flat_out)
 pii.READABLE_FIELDS = pii.MASKED_FIELDS = ()
-check("person field is masked by default", "Maria" not in pii.mask_json(flat_board, vault, tool="mcp__monday__get_board_items_page"))
+check("person field is masked by default", "Maria" not in pii.mask_json(flat_board, vault, tool="mcp__tracker__get_board_items_page"))
 check("people0 and pessoas fields are masked by default",
       all(pii.column_kind(c) == "NAME" for c in ("person", "people", "people0", "pessoas", "assigned_person")))
 check("person ids and person objects are kept", pii.mask_json('{"person": 42, "person_id": 7}', vault) == '{"person": 42, "person_id": 7}')
-pii.READABLE_FIELDS = pii.parse_field_rules(("mcp__monday__:**.column_values.person",))
-check("person field: a readable rule keeps it", "Maria Silva" in pii.mask_json(flat_board, vault, tool="mcp__monday__get_board_items_page"))
+pii.READABLE_FIELDS = pii.parse_field_rules(("mcp__tracker__:**.column_values.person",))
+check("person field: a readable rule keeps it", "Maria Silva" in pii.mask_json(flat_board, vault, tool="mcp__tracker__get_board_items_page"))
 pii.READABLE_FIELDS = ()
 
 email_prompt = hook("prompt", {"prompt": "the customer is maria@cliente.example"})

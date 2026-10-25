@@ -225,7 +225,7 @@ def cmd_selfcheck(args):
 
     # Values that are not personal data: a masked one means a false positive.
     keep = (str(uuid.uuid4()), hashlib.sha256(cpf.encode()).hexdigest(), "2026-10-22T10:30:00Z", "R$ 1.234,56")
-    data.write_text(f"fictitious person, document {cpf}, order {keep[0]}, commit {keep[1]}, at {keep[2]}, paid {keep[3]}\n")
+    data.write_text(f"fictitious person, document {cpf}, ticket {keep[0]}, commit {keep[1]}, at {keep[2]}, total {keep[3]}\n")
     print(f"pii-selfcheck: fictitious CPF, model {model}, one headless session per case")
     failures = 0
     try:

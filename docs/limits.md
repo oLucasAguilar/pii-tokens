@@ -42,13 +42,13 @@ A máscara é estrita por padrão. Isso custa quando o que está na tela não é
 - **Campo `name` de JSON é sempre mascarado.**
 	- Em `package.json`, `kubectl get -o json` ou `docker inspect`, o Claude vê `NAME#...` no lugar do nome.
 	- Ligue **Manter nomes de ferramenta de dev** para deixar esses campos em paz.
-	- Para título de tarefa (Monday, Asana, Trello), use **Campos legíveis** ([uso](usage.md#configurações)).
+	- Para título de tarefa (Jira, Asana, Trello), use **Campos legíveis** ([uso](usage.md#configurações)).
 	- O campo só é mantido dentro de um documento com o formato exato de uma dessas ferramentas.
 	- Então `{"name": "Maria Silva", "scripts": {}}` continua mascarado.
 	- O que passa é um nome de uma palavra só dentro de um documento desses.
-- **Campo `person`, `people` ou `pessoas` vira token por padrão** (o responsável no Monday, por exemplo). Para ler, use **Campos legíveis**.
+- **Campo `person`, `people` ou `pessoas` vira token por padrão** (o responsável por uma tarefa, por exemplo). Para ler, use **Campos legíveis**.
 - **Cerca de 1 em cada 100 números aleatórios de 11 ou 14 dígitos vira token.**
-	- Eles passam no dígito verificador de CPF ou CNPJ: id de pedido, telefone sem pontuação, o último bloco da linha digitável de um boleto.
+	- Eles passam no dígito verificador de CPF ou CNPJ: número de protocolo, telefone sem pontuação, trecho de código de barras.
 	- Rode pelo `pii-exec` o comando que precisa do número.
 - **Cada chamada de ferramenta paga um processo Python.**
 	- Cerca de 0,3 s para mascarar e 0,04 s para a checagem de escrita, medidos num notebook.

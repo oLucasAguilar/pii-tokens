@@ -42,13 +42,13 @@ Masking is strict by default. That costs when the data on screen is not personal
 - **JSON `name` fields are always masked.**
 	- In `package.json`, `kubectl get -o json` or `docker inspect`, Claude sees `NAME#...` instead of the name.
 	- Turn on **Keep developer tool names** to leave those fields alone.
-	- For task titles (Monday, Asana, Trello), use **Readable fields** ([usage](usage.en.md#settings)).
+	- For task titles (Jira, Asana, Trello), use **Readable fields** ([usage](usage.en.md#settings)).
 	- A field is kept only inside a document shaped exactly like one of those tools.
 	- So `{"name": "Maria Silva", "scripts": {}}` is still masked.
 	- What it lets through is a one-word name inside such a document.
-- **A `person`, `people` or `pessoas` field becomes a token by default** (a Monday assignee, for example). To read it, use **Readable fields**.
+- **A `person`, `people` or `pessoas` field becomes a token by default** (a task assignee, for example). To read it, use **Readable fields**.
 - **About 1 in 100 random numbers of 11 or 14 digits become tokens.**
-	- They pass the CPF or CNPJ check digits: order ids, phone numbers without punctuation, the last block of a Brazilian boleto line.
+	- They pass the CPF or CNPJ check digits: ticket numbers, phone numbers without punctuation, part of a barcode.
 	- Run the command that needs the number through `pii-exec`.
 - **Each tool call pays for one Python process.**
 	- About 0.3 s for masking and 0.04 s for the write check, measured on a laptop.

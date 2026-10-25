@@ -50,19 +50,19 @@ All optional. Asked when the plugin is enabled, changed later with `claude plugi
 	- Allowed out of the box, with no setting: `example.com`, `example.org` and GitHub `noreply` addresses.
 - **Tools that return tables:** prefixes of MCP tools that return a psql-style table, such as `mcp__postgres__`.
 	- Their columns are masked by name (`nome`, `razao_social`, `email`, ...).
-- **Copy the read request:** on by default. When a pasted screenshot is blocked, the message asking Claude to read the file goes to the clipboard, replacing what was there.
+- **Copy the read request:** on by default. When a pasted image is blocked, the message asking Claude to read the file goes to the clipboard, replacing what was there.
 - **Keep developer tool names:** off by default. See [Side effects](limits.en.md#side-effects).
 - **Readable fields:** fields you know hold no person's name, in one tool. Format `tool:path`.
-	- Example, to read card titles in the Monday MCP: `mcp__monday__:**.items[].name`, `mcp__monday__:**.subitems[].name`, `mcp__monday__:**.boards[].name`.
+	- Example, to read task titles in a task tracker MCP: `mcp__tracker__:**.items[].name`, `mcp__tracker__:**.subitems[].name`, `mcp__tracker__:**.boards[].name`.
 	- `**.` matches any start of the path.
 	- A CPF, CNPJ, email or phone written inside the field still becomes a token.
-	- The rule covers the whole tool. If the same account has a client board, its card titles, usually the client's name, come through too.
-	- `[key=value]` before the last field filters by its neighbour: `mcp__monday__:**.column_values[type=people].text` keeps only the people column, not the text columns.
+	- The rule covers the whole tool. If the same account has a client board, its task titles, usually the client's name, come through too.
+	- `[key=value]` before the last field filters by its neighbour: `mcp__tracker__:**.column_values[type=people].text` keeps only the people column, not the text columns.
 - **Masked fields:** the opposite, for a field that holds personal data although its name does not say so. Same format.
-	- Example, for a Monday "Client" column: `mcp__monday__:**.column_values[id=text_abc123].text`. The column id shows up in `get_board_info`.
-	- ⚠️ Each tool of the same MCP may return a different shape. In Monday, `all_api_read` returns columns as a list (the rule above) and `get_board_items_page` as a map: for it, `mcp__monday__:**.column_values.text_abc123`. Add both, and check a real response before relying on them.
-	- The board name comes in `boards[].name` from one tool and in `board.name` from the other.
-	- The value becomes a token, and the same client always gets the same token, so cards can be matched without seeing the name.
+	- Example, for a "Client" column: `mcp__tracker__:**.column_values[id=text_abc123].text`. The column id shows up in the tool's response.
+	- ⚠️ Each tool of the same MCP may return a different shape. One may return columns as a list (the rule above) and another as a map: for it, `mcp__tracker__:**.column_values.text_abc123`. Add both, and check a real response before relying on them.
+	- The board name may come in `boards[].name` from one tool and in `board.name` from the other.
+	- The value becomes a token, and the same client always gets the same token, so tasks can be matched without seeing the name.
 	- A field in both lists is masked.
 
 ## Notes on the commands

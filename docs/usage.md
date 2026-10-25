@@ -53,6 +53,13 @@ Todas opcionais. Pedidas quando o plugin é ativado, alteráveis depois com `cla
 	- As colunas delas são mascaradas pelo nome (`nome`, `razao_social`, `email`, ...).
 - **Copiar o pedido de leitura:** ligada por padrão. Quando uma imagem colada é barrada, a mensagem que pede a leitura do arquivo vai para a área de transferência, no lugar do que estava lá.
 - **Manter nomes de ferramenta de dev:** desligada por padrão. Veja [Efeitos colaterais](limits.md#efeitos-colaterais).
+- **Termos:** palavras que você decide que são sensíveis, como o nome de um cliente ou da empresa que te contratou. Viram `TERM#`.
+	- Ficam fora do `settings.json` (no Linux, em `~/.claude/.credentials.json`).
+	- Casam sem diferença de maiúscula nem de acento.
+	- Termo de 6 letras ou mais casa também dentro de outra palavra (domínio, nome de arquivo) e com `.`, `_` ou `-` entre as letras.
+	- Termo menor, como um primeiro nome, só como palavra inteira: `Ana` não casa em `banana`. Para pegar um nome curto dentro de um domínio, liste a forma longa (`acmecorp`).
+	- Cada grafia tem o próprio token (`Acme` e `ACME` são dois), para o `pii-exec` usar o texto exato.
+- **Mascarar IP:** desligada por padrão. Troca endereço IPv4 por `IP#`; `127.x`, `0.0.0.0` e `255.255.x` ficam.
 - **Campos legíveis:** campos que você sabe que não guardam nome de pessoa, numa ferramenta só. Formato `ferramenta:caminho`.
 	- Exemplo, para ler o título das tarefas num MCP de gestão de tarefas: `mcp__tracker__:**.items[].name`, `mcp__tracker__:**.subitems[].name`, `mcp__tracker__:**.boards[].name`.
 	- `**.` casa qualquer começo de caminho.

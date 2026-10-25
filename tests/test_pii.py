@@ -322,6 +322,55 @@ from_hook = hook("post", {"tool_name": "mcp__tracker__all_api_read", "tool_respo
 del os.environ["CLAUDE_PLUGIN_OPTION_MASKED_FIELDS"]
 check("masked fields: the hook reads the option", "Acme" not in from_hook and "call back friday" in from_hook)
 
+# Terms the user lists (a client's company, a person): every variant becomes a TERM# token, and nothing else changes.
+check("terms: off by default", pii.TERM_RE is None and pii.mask_text("openvpn.zorbtech.example", vault) == "openvpn.zorbtech.example")
+pii.TERM_RE = pii.compile_terms(["Zorbtech", "Metabolix", "Ana", "Brasília Labs"])
+term_cases = {
+    "inside a domain": "openvpn.zorbtech.example",
+    "inside a file name": "./vpn/cliente-ZorbTech.ovpn",
+    "upper case": "ZORBTECH",
+    "a separator between letters": "z.o.r.b-t_e_c_h",
+    "without the accent": "brasilia labs",
+    "joined by a hyphen": "BRASÍLIA-LABS",
+    "a short term as a word": "oi Ana!",
+    "a short term in an identifier": "ana_api",
+}
+for label, text in term_cases.items():
+    check(f"terms: {label} is masked", "TERM#" in pii.mask_text(text, vault))
+for label, text in {"a short term inside a word": "banana e Anabela", "a common word that starts a term": "uma meta clara",
+                    "a token's hex": "CPF#ab12cd34ef56 ana", "two words that spell a term": "zorb techno"}.items():
+    masked = pii.mask_text(text, vault)
+    check(f"terms: {label} is kept", masked.split(" ")[0] == text.split(" ")[0] and "banana" in masked if "banana" in text
+          else masked.split(" ")[0] == text.split(" ")[0])
+domain = pii.mask_text("openvpn.zorbtech.example", vault)
+check("terms: the rest of the domain is kept", domain.startswith("openvpn.TERM#") and domain.endswith(".example"))
+check("terms: the same spelling gets the same token", pii.mask_text("Zorbtech", vault) == pii.mask_text("Zorbtech!", vault)[:-1])
+check("terms: many spellings never collide", len({pii.mask_text(t, vault) for t in ("zorbtech", "ZORBTECH", "ZorbTech", "Zorbtech", "zorbTECH", "ZoRbTeCh")}) == 6)
+check("terms: the token gives back the exact spelling", pii.unmask_text(pii.mask_text("Zorb-Tech", vault), vault) == "Zorb-Tech")
+check("terms: masking twice changes nothing", pii.mask_text(domain, vault) == domain)
+check("terms: the token is recognized everywhere", pii.TOKEN_RE.fullmatch(pii.mask_text("Metabolix", vault)) is not None)
+pii.TERM_RE = None
+os.environ["CLAUDE_PLUGIN_OPTION_TERMS"] = '["Zorbtech"]'
+from_hook = hook("post", {"tool_name": "Bash", "tool_response": {"stdout": "remote openvpn.zorbtech.example 1194", "stderr": ""}})
+del os.environ["CLAUDE_PLUGIN_OPTION_TERMS"]
+check("terms: the hook reads the option", "zorbtech" not in from_hook.lower() and "TERM#" in from_hook)
+
+# IP addresses: kept by default (above), masked when the option is on.
+pii.MASK_IP = True
+check("IP: masked, the final period kept", re.fullmatch(r"DNS IP#[0-9a-f]{12}\.", pii.mask_text("DNS 10.1.2.3.", vault)) is not None)
+for kept in ("127.0.0.1", "0.0.0.0", "255.255.255.0", "999.1.1.1", "v1.2.3.4", "1.2.3.4.5", "10.1.2"):
+    check(f"IP: {kept} is kept", pii.mask_text(f"x {kept} y", vault) == f"x {kept} y")
+check("IP: an IP with CPF check digits becomes an IP token", pii.mask_text(f"host {ip_like} up", vault).startswith("host IP#"))
+check("IP: the token gives the address back", pii.unmask_text(pii.mask_text("10.9.8.7", vault), vault) == "10.9.8.7")
+pii.MASK_IP = False
+
+# A file named after an email keeps its extension.
+check("email: a file name keeps its extension", re.fullmatch(r"\./EMAIL#[0-9a-f]{12}\.txt", pii.mask_text("./ana.silva@mail.test.txt", vault)) is not None)
+check("email: the same address with and without the extension", pii.mask_text("ana.silva@mail.test.txt", vault)[:-4] == pii.mask_text("ana.silva@mail.test", vault))
+check("email: a domain of three labels is whole", pii.unmask_text(pii.mask_text("bia@mail.com.test", vault), vault) == "bia@mail.com.test")
+check("email: an extension-like label in the middle stays in", pii.unmask_text(pii.mask_text("bia@x.pdf.test", vault), vault) == "bia@x.pdf.test")
+check("email: an allowed domain with an extension is kept", pii.mask_text("bia@acme.example.csv", vault) == "bia@acme.example.csv")
+
 # Some tools return column_values as a map keyed by column id, not a list.
 flat_board = json.dumps({"board": {"id": "1", "name": "Dev tasks"}, "items": [{"id": "2", "name": "Handle return outcomes",
     "column_values": {"person": "Maria Silva", "text_client": "Acme Comercio Ltda", "status": "Done"}}]})

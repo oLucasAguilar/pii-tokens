@@ -14,7 +14,8 @@ This protects against accidental exposure, not against a model trying to extract
 - **Commands that fail reach the model raw.**
 	- The hook Claude Code fires on failure cannot change the output.
 	- Requested in [anthropics/claude-code#97278](https://github.com/anthropics/claude-code/issues/97278).
-- **Names in free text are not detected:** issue bodies, web pages, log lines.
+- **Names in free text are not detected:** issue bodies, web pages, log lines. Only what is in the term list.
+- **A listed term typed into the prompt gets through.** The prompt is blocked only for a CPF, CNPJ, phone or email.
 - **Some document shapes are not detected:**
 	- a phone written as 11 bare digits, unless it sits in a phone column
 	- a CPF glued to letters, such as `doc` followed by the digits
@@ -50,6 +51,8 @@ Masking is strict by default. That costs when the data on screen is not personal
 - **About 1 in 100 random numbers of 11 or 14 digits become tokens.**
 	- They pass the CPF or CNPJ check digits: ticket numbers, phone numbers without punctuation, part of a barcode.
 	- Run the command that needs the number through `pii-exec`.
+- **A term that is also a word in code** (`max`, `atlas`) masks the code too.
+- **A term in a file or host name:** Claude sees `TERM#...` and cannot open or edit by the name it saw. Run the command through `pii-exec`, which asks for your confirmation.
 - **Each tool call pays for one Python process.**
 	- About 0.3 s for masking and 0.04 s for the write check, measured on a laptop.
 

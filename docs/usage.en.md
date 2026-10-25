@@ -52,6 +52,13 @@ All optional. Asked when the plugin is enabled, changed later with `claude plugi
 	- Their columns are masked by name (`nome`, `razao_social`, `email`, ...).
 - **Copy the read request:** on by default. When a pasted image is blocked, the message asking Claude to read the file goes to the clipboard, replacing what was there.
 - **Keep developer tool names:** off by default. See [Side effects](limits.en.md#side-effects).
+- **Terms:** words you decide are sensitive, such as a client's name or the company that hired you. They become `TERM#`.
+	- Kept out of `settings.json` (on Linux, in `~/.claude/.credentials.json`).
+	- Matched in any case, with or without accents.
+	- A term of 6 letters or more also matches inside another word (domain, file name) and with `.`, `_` or `-` between letters.
+	- A shorter term, such as a first name, matches only as a whole word: `Ana` does not match in `banana`. To catch a short name inside a domain, list the long form (`acmecorp`).
+	- Each spelling gets its own token (`Acme` and `ACME` are two), so `pii-exec` uses the exact text.
+- **Mask IP addresses:** off by default. Replaces IPv4 addresses with `IP#`; `127.x`, `0.0.0.0` and `255.255.x` are kept.
 - **Readable fields:** fields you know hold no person's name, in one tool. Format `tool:path`.
 	- Example, to read task titles in a task tracker MCP: `mcp__tracker__:**.items[].name`, `mcp__tracker__:**.subitems[].name`, `mcp__tracker__:**.boards[].name`.
 	- `**.` matches any start of the path.

@@ -70,6 +70,8 @@ Commands and settings: [docs/usage.en.md](docs/usage.en.md).
 
 ## What gets masked
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/tokens-en-dark.gif"><img alt="A CPF and an email turn into tokens" src="docs/tokens-en-light.gif"></picture>
+
 | Data | Token |
 |---|---|
 | CPF and CNPJ (with valid check digits) | `CPF#`, `CNPJ#` |

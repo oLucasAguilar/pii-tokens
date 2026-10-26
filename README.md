@@ -79,6 +79,8 @@ Comandos e configurações: [docs/usage.md](docs/usage.md).
 
 ## O que é mascarado
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/tokens-pt-dark.gif"><img alt="Um CPF e um email viram token" src="docs/tokens-pt-light.gif"></picture>
+
 | Dado | Token |
 |---|---|
 | CPF e CNPJ (com dígito verificador válido) | `CPF#`, `CNPJ#` |

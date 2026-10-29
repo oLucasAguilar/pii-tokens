@@ -22,7 +22,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Install the pinned dependencies
         run: |
-          python -m pip install --require-hashes -r requirements.txt
+          python -m pip install --require-hashes -r plugin/requirements.txt
           python -m pip install keyrings.alt
       - name: Install tesseract, so the image tests run
         run: ${{ runner.os == 'Linux' && 'sudo apt-get install -y tesseract-ocr' || 'brew install tesseract' }}

@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "pii-tokens",
-      "source": "./",
+      "source": "./plugin",
       "description": "Masks Brazilian personal data (CPF, CNPJ, email, phone, names in tables and JSON) before Claude sees it, with reversible tokens."
     }
   ]

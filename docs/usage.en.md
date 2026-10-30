@@ -10,7 +10,7 @@ On the first session, the plugin installs its dependencies, pinned by hash, into
 
 - If that fails, masking still runs, but tokens show as `CPF#????????` and cannot be reversed.
 
-To mask images, install `tesseract` (`apt install tesseract-ocr`, `brew install tesseract`, or on Windows the installer at github.com/UB-Mannheim/tesseract).
+To mask images, install `tesseract` (`apt install tesseract-ocr`, `brew install tesseract`, or on Windows the installer at github.com/UB-Mannheim/tesseract, which needs administrator rights and shows as "unknown publisher").
 
 ## Check that it works
 

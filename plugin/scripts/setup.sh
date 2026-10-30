@@ -7,8 +7,12 @@ mkdir -p "$data" && ln -sfn "$root/bin" "$data/bin"
 find "$HOME/.cache/pii-tokens/reveal" -type f -mmin +1440 -delete 2>/dev/null
 cmp -s "$root/requirements.txt" "$data/requirements.txt" && exit 0
 python=$("$root/scripts/find_python.sh")
-if [ -n "$python" ] && "$python" -m venv "$data/venv" >/dev/null 2>&1 \
-  && "$("$root/scripts/find_python.sh" "$data/venv")" -m pip install --quiet --require-hashes -r "$root/requirements.txt" >/dev/null 2>&1; then
+pip_install="install --quiet --disable-pip-version-check --require-hashes"
+# A venv without its own pip is ready in 0.1 s instead of 10 (measured on Windows), and the system pip fills it;
+# where the system Python has no pip, the venv brings its own, as before.
+fast() { "$python" -m venv --without-pip "$data/venv" && "$python" -m pip --python "$("$root/scripts/find_python.sh" "$data/venv")" $pip_install -r "$root/requirements.txt"; }
+usual() { "$python" -m venv "$data/venv" && "$("$root/scripts/find_python.sh" "$data/venv")" -m pip $pip_install -r "$root/requirements.txt"; }
+if [ -n "$python" ] && { fast || usual; } >/dev/null 2>&1; then
   cp "$root/requirements.txt" "$data/requirements.txt"
 else
   echo "[pii-tokens] could not install keyring/cryptography into $data/venv; masking still runs, but tokens cannot be reversed. Needs Python 3.10+ with venv." >&2

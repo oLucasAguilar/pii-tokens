@@ -1,0 +1,86 @@
+{
+  "manifest_version": "0.4",
+  "name": "pii-tokens",
+  "display_name": "pii-tokens",
+  "version": "0.1.0",
+  "description": "Connects Claude to an MCP server and masks CPF, CNPJ, email, phone and name columns in its results before Claude reads them.",
+  "author": {
+    "name": "Lucas Aguilar"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oLucasAguilar/pii-tokens"
+  },
+  "server": {
+    "type": "uv",
+    "entry_point": "pii_proxy/__main__.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "python", "-m", "pii_proxy"],
+      "env": {
+        "PII_PROXY_URL": "${user_config.url}",
+        "PII_PROXY_AUTH": "${user_config.auth}",
+        "PII_PROXY_PRESET": "${user_config.preset}",
+        "PII_PROXY_HEADERS": "${user_config.headers}",
+        "PII_PROXY_ALLOW_TOOLS": "${user_config.allow_tools}",
+        "PII_PROXY_BLOCK_TOOLS": "${user_config.block_tools}",
+        "PII_PROXY_UNMASK": "${user_config.unmask}",
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  },
+  "user_config": {
+    "url": {
+      "type": "string",
+      "title": "MCP server URL",
+      "description": "The server Claude reaches through this extension, such as https://metabase.example.com/api/metabase-mcp",
+      "required": true
+    },
+    "auth": {
+      "type": "string",
+      "title": "Authentication",
+      "description": "oauth opens the server's sign-in page in your browser on first use; leave empty for none.",
+      "default": "oauth"
+    },
+    "preset": {
+      "type": "string",
+      "title": "Preset",
+      "description": "Tool rules for a known server. metabase: adds execute_sql and hides the tools whose data cannot be masked. Empty: only tools marked read-only.",
+      "default": ""
+    },
+    "headers": {
+      "type": "string",
+      "title": "Extra headers (JSON)",
+      "description": "Sent on every request, sign-in included. For an auth proxy in front of the server, such as {\"CF-Access-Client-Id\": \"...\", \"CF-Access-Client-Secret\": \"...\"}",
+      "sensitive": true,
+      "default": ""
+    },
+    "allow_tools": {
+      "type": "string",
+      "title": "Also allow these tools",
+      "description": "Comma-separated tool names to expose although the rules hide them, such as dashboard_write.",
+      "default": ""
+    },
+    "block_tools": {
+      "type": "string",
+      "title": "Block these tools",
+      "description": "Comma-separated tool names never to expose. Wins over everything else.",
+      "default": ""
+    },
+    "unmask": {
+      "type": "string",
+      "title": "Unmask in queries",
+      "description": "Comma-separated kinds (CPF, CNPJ, EMAIL, PHONE) whose tokens become the real value in what Claude sends, so Claude can filter by them without reading them. A crafted query can bring part of the value back. Empty by default.",
+      "default": ""
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32"],
+    "runtimes": {
+      "python": ">=3.10"
+    }
+  },
+  "keywords": ["pii", "privacy", "lgpd", "mcp", "proxy"],
+  "license": "MIT"
+}

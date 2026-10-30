@@ -68,6 +68,10 @@ pii-reveal report.md                        # opens the real version in your edi
 
 Commands and settings: [docs/usage.en.md](docs/usage.en.md).
 
+**Claude Desktop**
+
+In Desktop chat, hooks do not run. For an MCP server there, use the Desktop extension: [docs/desktop.en.md](docs/desktop.en.md).
+
 ## What gets masked
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/tokens-en-dark.gif"><img alt="A CPF and an email turn into tokens" src="docs/tokens-en-light.gif"></picture>

@@ -77,6 +77,10 @@ pii-reveal relatorio.md                     # abre a versão real no seu editor,
 
 Comandos e configurações: [docs/usage.md](docs/usage.md).
 
+**Claude Desktop**
+
+No chat do Desktop, hook não roda. Para um servidor MCP ali, use a extensão do Desktop: [docs/desktop.md](docs/desktop.md).
+
 ## O que é mascarado
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/tokens-pt-dark.gif"><img alt="Um CPF e um email viram token" src="docs/tokens-pt-light.gif"></picture>

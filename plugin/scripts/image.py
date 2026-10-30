@@ -1,6 +1,6 @@
 """Personal data drawn in images: OCR finds it and the token is drawn over it.
 
-Best effort: what OCR misses passes. Needs tesseract on PATH and Pillow; without them images pass unchecked
+Best effort: what OCR misses passes. Needs tesseract and Pillow; without them images pass unchecked
 and the hooks say so.
 """
 
@@ -24,16 +24,23 @@ PASTED_IMAGE = re.compile(r"\[Image #(\d+)\]")
 DOCUMENT_SHAPE = re.compile(r"\d[\dOoIl. /-]*[\dOoIl]")  # O, o, I, l: digits OCR commonly misreads
 
 
+def _tesseract() -> str | None:
+    # The Windows installer puts it in one of these folders, which need not be on PATH.
+    folders = [os.environ.get(name, "") for name in ("ProgramFiles", "LOCALAPPDATA")]
+    windows = [Path(f, sub, "Tesseract-OCR", "tesseract.exe") for f, sub in zip(folders, ("", "Programs")) if f]
+    return shutil.which("tesseract") or next((str(path) for path in windows if path.is_file()), None)
+
+
 def available() -> bool:
     try:
         import PIL  # noqa: F401
     except ImportError:
         return False
-    return shutil.which("tesseract") is not None
+    return _tesseract() is not None
 
 
 def _words(png: bytes) -> list[dict]:
-    out = subprocess.run(["tesseract", "stdin", "stdout", "tsv"], input=png, capture_output=True, check=True).stdout
+    out = subprocess.run([_tesseract(), "stdin", "stdout", "tsv"], input=png, capture_output=True, check=True).stdout
     rows = csv.DictReader(io.StringIO(out.decode(errors="ignore")), delimiter="\t", quoting=csv.QUOTE_NONE)
     return [r for r in rows if (r.get("text") or "").strip()]
 
@@ -69,7 +76,7 @@ def _reread(enlarged, group: list[dict], vault) -> str | None:
     png = io.BytesIO()
     crop.save(png, "PNG")
     text = subprocess.run(
-        ["tesseract", "stdin", "stdout", "--psm", "7", "-c", "tessedit_char_whitelist=0123456789./-"],
+        [_tesseract(), "stdin", "stdout", "--psm", "7", "-c", "tessedit_char_whitelist=0123456789./-"],
         input=png.getvalue(), capture_output=True, check=True,
     ).stdout.decode(errors="ignore").strip()
     return _tokens(text, vault)

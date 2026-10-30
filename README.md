@@ -34,6 +34,7 @@ Imagem só é mascarada com o `tesseract` instalado; sem ele, passa com aviso:
 
 ```
 apt install tesseract-ocr   # ou: brew install tesseract
+# Windows: instalador em github.com/UB-Mannheim/tesseract
 ```
 
 ## Na prática

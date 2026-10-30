@@ -3,6 +3,7 @@
   "name": "pii-tokens",
   "display_name": "pii-tokens",
   "version": "0.1.0",
+  "icon": "icon.png",
   "description": "Connects Claude to an MCP server and masks CPF, CNPJ, email, phone and name columns in its results before Claude reads them.",
   "author": {
     "name": "Lucas Aguilar"

@@ -104,9 +104,9 @@ class RefreshSafeOAuth(OAuth):
 
     Every failed refresh sends the user to sign in again in the browser. Two ways it failed:
     - The SDK learns the authorization server's metadata only while signing in. With tokens loaded
-      from the store it refreshes at {origin}/token, where Metabase answers an empty 200.
+      from the store it refreshes at {origin}/token, where a server may answer an empty 200.
     - Claude Desktop runs two copies of the proxy on one store. The SDK reads the store once, and
-      Metabase rotates the refresh token: when one copy refreshes, the other's dies.
+      a server may rotate the refresh token: when one copy refreshes, the other's dies.
     """
 
     async def _refresh_token(self):

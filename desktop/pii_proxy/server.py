@@ -13,27 +13,11 @@ from fastmcp.client.transports import StreamableHttpTransport
 from fastmcp.exceptions import ToolError
 from fastmcp.server import create_proxy
 from fastmcp.server.middleware import Middleware, MiddlewareContext
+from fastmcp.server.providers.proxy import ProxyClient
 from fastmcp.tools import ToolResult
 from mcp.types import TextContent
 
-from . import masking
-
-
-@dataclasses.dataclass(frozen=True)
-class Preset:
-    allow: frozenset = frozenset()
-    block: frozenset = frozenset()
-
-
-# Tool rules for a known upstream, on top of the generic one (only tools marked read-only).
-PRESETS = {
-    "metabase": Preset(
-        # Runs read-only SQL but is not marked read-only.
-        allow=frozenset({"execute_sql"}),
-        # Their data reaches Claude without passing through here (a chart iframe) or is raw column values with no column to mask by.
-        block=frozenset({"visualize_query", "render_drill_through", "get_parameter_values"}),
-    ),
-}
+from . import masking, upstreams
 
 # Kinds that the result masking finds again by format, so a token unmasked in a query cannot come back in clear.
 UNMASKABLE_KINDS = frozenset({"CPF", "CNPJ", "EMAIL", "PHONE"})
@@ -55,8 +39,8 @@ class Settings:
     unmask_kinds: frozenset = frozenset()
 
     def __post_init__(self):
-        if self.preset and self.preset not in PRESETS:
-            raise ValueError(f"unknown preset {self.preset!r}: {', '.join(sorted(PRESETS))}")
+        if self.preset not in upstreams.PROFILES:
+            raise ValueError(f"unknown preset {self.preset!r}: {', '.join(sorted(p for p in upstreams.PROFILES if p))}")
         unknown = self.unmask_kinds - UNMASKABLE_KINDS
         if unknown:
             raise ValueError(f"cannot unmask {', '.join(sorted(unknown))}: only {', '.join(sorted(UNMASKABLE_KINDS))}")
@@ -79,18 +63,18 @@ class Settings:
             return False
         if tool.name in self.allow_tools:
             return True
-        preset = PRESETS.get(self.preset, Preset())
-        if tool.name in preset.block:
+        profile = upstreams.PROFILES[self.preset]
+        if tool.name in profile.block:
             return False
-        if tool.name in preset.allow:
+        if tool.name in profile.allow:
             return True
         return bool(tool.annotations and tool.annotations.read_only_hint)
 
 
 class MaskingMiddleware(Middleware):
-    def __init__(self, settings: Settings, vault):
+    def __init__(self, settings: Settings, masker: masking.Masker):
         self.settings = settings
-        self.vault = vault
+        self.masker = masker
 
     async def on_list_tools(self, context: MiddlewareContext, call_next):
         tools = await call_next(context)
@@ -102,7 +86,7 @@ class MaskingMiddleware(Middleware):
         tool = await context.fastmcp_context.fastmcp.get_tool(name)
         if tool is None or not self.settings.allows(tool):
             raise ToolError(f"Tool {name!r} is not available through this proxy.")
-        arguments = masking.unmask_arguments(context.message.arguments or {}, self.settings.unmask_kinds, self.vault)
+        arguments = self.masker.unmask(context.message.arguments or {})
         context = context.copy(message=context.message.model_copy(update={"arguments": arguments}))
         try:
             result = await call_next(context)
@@ -115,7 +99,7 @@ class MaskingMiddleware(Middleware):
     def _masked(self, result: ToolResult) -> ToolResult:
         try:
             content = [self._masked_block(block) for block in result.content]
-            structured = None if result.structured_content is None else masking.mask_value(result.structured_content, self.vault)
+            structured = None if result.structured_content is None else self.masker.value(result.structured_content)
         except Exception as e:
             print(f"[pii-tokens] result withheld: {type(e).__name__}", file=sys.stderr)
             raise ToolError("Result withheld: it could not be masked with certainty.") from None
@@ -123,12 +107,12 @@ class MaskingMiddleware(Middleware):
 
     def _masked_block(self, block):
         if not isinstance(block, TextContent):
-            raise masking.Unrecognized(f"{block.type} content")
-        return TextContent(type="text", text=masking.mask_text_block(block.text, self.vault))
+            raise masking.Withheld(f"{block.type} content")
+        return TextContent(type="text", text=self.masker.text(block.text))
 
     def _masked_message(self, message: str) -> str:
         try:
-            return masking.mask_text_block(message, self.vault)
+            return self.masker.text(message)
         except Exception:
             return "The upstream server failed, and its message could not be masked with certainty."
 
@@ -143,15 +127,42 @@ def upstream_transport(settings: Settings) -> StreamableHttpTransport:
     )
 
 
+async def _refuse(*args):
+    raise ToolError("pii-tokens does not forward this request: its text could not be masked.")
+
+
+async def _ignore_progress(progress, total, message):
+    pass
+
+
+def _log_handler(masker):
+    async def log(message):
+        print(f"[upstream {message.level}] {masker.text(str(message.data))}", file=sys.stderr)
+
+    return log
+
+
 def build(settings: Settings, upstream=None):
     target = upstream if upstream is not None else upstream_transport(settings)
-    # The upstream era is negotiated on its own: mirroring Claude's era fails on a server that speaks only one.
-    proxy = create_proxy(target, mode="auto", name="pii-tokens")
+    masker = masking.Masker(masking.vault(), settings.unmask_kinds)
+    # Besides results, the upstream can send logs, progress and sampling or elicitation requests, which the
+    # default proxy forwards to Claude as they come. Logs go to the extension's log file masked; the rest stops here.
+    client = ProxyClient(
+        target,
+        # The upstream era is negotiated on its own: mirroring Claude's era fails on a server that speaks only one.
+        mode="auto",
+        sampling_handler=_refuse,
+        elicitation_handler=_refuse,
+        log_handler=_log_handler(masker),
+        progress_handler=_ignore_progress,
+    )
+    proxy = create_proxy(client, name="pii-tokens")
     # Resources and prompts would be another way out for data; nothing here masks them yet.
     proxy.disable(components={"resource", "template", "prompt"})
-    proxy.add_middleware(MaskingMiddleware(settings, masking.vault()))
+    proxy.add_middleware(MaskingMiddleware(settings, masker))
     return proxy
 
 
 def main():
-    build(Settings.from_env()).run()
+    # The banner's emoji turns into mojibake in the Windows log, and it says nothing about the masking.
+    build(Settings.from_env()).run(show_banner=False)

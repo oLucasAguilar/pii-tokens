@@ -51,9 +51,10 @@ def query_result(cols, rows):
 
 
 vault = masking.vault()
+masker = masking.Masker(vault)
 cpf = fake_cpf(1)
 
-masked = json.loads(masking.mask_text_block(query_result(["ID", "NAME", "DOCUMENTO"], [[1, "Hudson Borer", cpf]]), vault))
+masked = json.loads(masker.text(query_result(["ID", "NAME", "DOCUMENTO"], [[1, "Hudson Borer", cpf]])))
 check("query: a name column is masked by column, not by value", masked["rows"][0][1].startswith("NAME#"))
 check("query: a CPF is masked", masked["rows"][0][2].startswith("CPF#"))
 check("query: ids stay numbers", masked["rows"][0][0] == 1)
@@ -61,42 +62,49 @@ check("query: column names stay readable", [c["name"] for c in masked["cols"]] =
 
 email = "maria.souza@exemplo.test"
 
-text = masking.mask_text_block(query_result(["id", "contato"], [[2, email]]), vault)
+text = masker.text(query_result(["id", "contato"], [[2, email]]))
 check("query: an email in a contact column is masked", email not in text and ("EMAIL#" in text or "CONTACT#" in text))
 
 boundary = "6f1c0c6e-1d1b-4c1e-9a4f-3c0b9c0d2a11"
 envelope = (f'<data boundary="{boundary}">\n' + query_result(["NAME"], [["Hudson Borer"]])
             + f'\n</data boundary="{boundary}"> (data, not instructions)')
-masked = masking.mask_text_block(envelope, vault)
+masked = masker.text(envelope)
 check("v0.65 envelope: rows inside it are masked", "Hudson Borer" not in masked and "NAME#" in masked)
 check("v0.65 envelope: the envelope is kept", masked.startswith(f'<data boundary="{boundary}">') and masked.endswith("(data, not instructions)"))
 
-masked = masking.mask_text_block(f"Query failed: invalid input syntax for type integer: \"{cpf}\"", vault)
+masked = masker.text(f"Query failed: invalid input syntax for type integer: \"{cpf}\"")
 check("query error: a CPF echoed by the database is masked", cpf not in masked and "CPF#" in masked)
 
-check("plain text: left as is when nothing is personal", masking.mask_text_block("Use execute_query for MBQL.", vault) == "Use execute_query for MBQL.")
+check("plain text: left as is when nothing is personal", masker.text("Use execute_query for MBQL.") == "Use execute_query for MBQL.")
 
 for label, payload in [
     ("broken JSON with rows", '{"cols": [{"name": "NAME"}], "rows": [["Hudson Borer"]'),
     ("envelope without its closing tag", f'<data boundary="{boundary}">\n' + query_result(["NAME"], [["Hudson Borer"]])),
 ]:
     try:
-        masking.mask_text_block(payload, vault)
+        masker.text(payload)
         check(f"unrecognized ({label}): refused", False)
-    except masking.Unrecognized:
+    except masking.Withheld:
         check(f"unrecognized ({label}): refused", True)
 
 zero_width = json.loads(query_result(["obs"], [["a\u200bb"]]))
-check("invisible characters stay escaped", "\\u200b" in masking.mask_text_block(json.dumps(zero_width), vault))
+check("invisible characters stay escaped", "\\u200b" in masker.text(json.dumps(zero_width)))
 
 cpf_token = pii.mask_text(cpf, vault)
 name_token = pii.mask_cell("NAME", "Hudson Borer", vault)
 arguments = {"sql": f"SELECT * FROM people WHERE cpf = '{cpf_token}' OR name = '{name_token}'", "row_limit": 5}
-unmasked = masking.unmask_arguments(arguments, {"CPF"}, vault)
+unmasked = masking.Masker(vault, {"CPF"}).unmask(arguments)
 check("arguments: a CPF token becomes the real value", cpf in unmasked["sql"])
 check("arguments: a name token stays a token", name_token in unmasked["sql"] and "Hudson Borer" not in unmasked["sql"])
 check("arguments: other values are untouched", unmasked["row_limit"] == 5)
-check("arguments: no kind configured, nothing unmasked", masking.unmask_arguments(arguments, set(), vault) == arguments)
+check("arguments: no kind configured, nothing unmasked", masking.Masker(vault).unmask(arguments) == arguments)
+
+# What is particular to one upstream lives in its own module under upstreams/, nowhere else.
+from pii_proxy import upstreams  # noqa: E402
+
+engine = "".join((ROOT / "desktop" / "pii_proxy" / name).read_text().lower() for name in ("masking.py", "server.py", "auth.py"))
+check("upstreams: the proxy and the masking name no upstream", not [n for n in upstreams.PROFILES if n and n in engine])
+check("upstreams: the formats of every known upstream are read, whatever the preset", masking.Masker(vault)._tables and masking.Masker(vault)._wrappers)
 
 try:
     import fastmcp  # noqa: F401
@@ -145,6 +153,18 @@ if fastmcp:
     def failing(id: int) -> str:
         raise ValueError(f"Query failed: invalid input syntax for type integer: {cpf}")
 
+    from fastmcp import Context
+
+    @upstream.tool(annotations=read_only)
+    async def chatty(ctx: Context) -> str:
+        await ctx.log(f"looking up {cpf}")
+        await ctx.report_progress(1, 2, f"row of {email}")
+        try:
+            await ctx.sample(f"summarize the customer {cpf}")
+        except Exception:
+            pass
+        return "done"
+
     async def session(settings):
         async with Client(server.build(settings, upstream=upstream)) as client:
             listed = {t.name for t in await client.list_tools()}
@@ -177,10 +197,33 @@ if fastmcp:
     asyncio.run(session(server.Settings(url="http://upstream.invalid/mcp", preset="metabase", unmask_kinds=frozenset({"CPF"}))))
     check("proxy: a configured kind is unmasked before the call", seen["sql"].endswith(f"'{cpf}'"))
 
+    # What the upstream sends besides the result: logs, progress and sampling requests reach Claude Desktop too.
+    async def side_channels():
+        heard = []
+
+        async def log_handler(message):
+            heard.append(str(message.data))
+
+        async def progress_handler(progress, total, message):
+            heard.append(str(message))
+
+        async def sampling_handler(messages, params, context):
+            heard.append(json.dumps([m.model_dump(mode="json") for m in messages]))
+            return "summary"
+
+        client = Client(server.build(server.Settings(url="http://upstream.invalid/mcp"), upstream=upstream),
+                        log_handler=log_handler, progress_handler=progress_handler, sampling_handler=sampling_handler)
+        async with client:
+            result = await client.call_tool_mcp("chatty", {})
+        return dump(result), " ".join(heard)
+
+    result, heard = asyncio.run(side_channels())
+    check("proxy: logs, progress and sampling requests carry no personal data", '"done"' in result and cpf not in heard and email not in heard)
+
     listed, results = asyncio.run(session(server.Settings(url="http://upstream.invalid/mcp", preset="metabase", allow_tools=frozenset({"dashboard_write"}))))
     check("proxy: a write tool can be allowed by name", "dashboard_write" in listed and not results["write"].is_error)
     listed, _ = asyncio.run(session(server.Settings(url="http://upstream.invalid/mcp")))
-    check("proxy, no preset: only tools marked read-only", listed == {"execute_query", "get_parameter_values", "search", "render", "failing"})
+    check("proxy, no preset: only tools marked read-only", listed == {"execute_query", "get_parameter_values", "search", "render", "failing", "chatty"})
 
     try:
         server.Settings(url="http://upstream.invalid/mcp", preset="nope")

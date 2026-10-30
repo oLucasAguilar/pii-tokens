@@ -15,9 +15,10 @@ DESKTOP = ROOT / "desktop"
 def entries():
     yield DESKTOP / "manifest.json", "manifest.json"
     yield DESKTOP / "pyproject.toml", "pyproject.toml"
+    yield DESKTOP / "icon.png", "icon.png"
     yield ROOT / "plugin" / "scripts" / "pii.py", "pii.py"
-    for source in sorted((DESKTOP / "pii_proxy").glob("*.py")):
-        yield source, f"pii_proxy/{source.name}"
+    for source in sorted((DESKTOP / "pii_proxy").rglob("*.py")):
+        yield source, source.relative_to(DESKTOP).as_posix()
 
 
 def main():

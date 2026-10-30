@@ -1,14 +1,14 @@
 #!/bin/sh
-# Prefer the plugin venv; fall back to system python3, where tokens become irreversible but masking still runs.
+# Prefer the plugin venv; fall back to the system Python, where tokens become irreversible but masking still runs.
 here=$(dirname "$0")
-python="${CLAUDE_PLUGIN_DATA:-/nonexistent}/venv/bin/python"
+python=$("$here/find_python.sh" "${CLAUDE_PLUGIN_DATA:-/nonexistent}/venv")
 # CLAUDE_PLUGIN_DATA is only set for hooks; the pii-* commands look where Claude Code keeps plugin data.
-if [ ! -x "$python" ]; then
-  for candidate in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/plugins/data/pii-tokens-*/venv/bin/python; do
-    [ -x "$candidate" ] && python="$candidate" && break
+if [ -z "$python" ]; then
+  for venv in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/plugins/data/pii-tokens-*/venv; do
+    python=$("$here/find_python.sh" "$venv") && break
   done
 fi
-[ -x "$python" ] || python=python3
+[ -n "$python" ] || python=$("$here/find_python.sh") || python=python3
 script="$1"
 shift
 exec "$python" "$here/$script" "$@"

@@ -65,6 +65,23 @@ def _deadline_reached(signum, frame):
     raise TimeoutError(f"masking took longer than {DEADLINE_SECONDS}s")
 
 
+def _arm_deadline():
+    """Raise TimeoutError in this thread after DEADLINE_SECONDS; returns the function that disarms it."""
+    if hasattr(signal, "SIGALRM"):
+        signal.signal(signal.SIGALRM, _deadline_reached)
+        signal.alarm(DEADLINE_SECONDS)
+        return lambda: signal.alarm(0)
+    # Windows has no SIGALRM: a timer interrupts the main thread instead, between Python instructions.
+    import _thread
+    import threading
+
+    signal.signal(signal.SIGINT, _deadline_reached)
+    timer = threading.Timer(DEADLINE_SECONDS, _thread.interrupt_main)
+    timer.daemon = True
+    timer.start()
+    return timer.cancel
+
+
 def _mask_images(image, response, vault):
     """The response with its images masked (blank when masking fails), and the note for Claude."""
     if not image.available():
@@ -86,8 +103,7 @@ def post(event: dict) -> None:
     if tool == "Read" and _git_tracked(event.get("tool_input", {}).get("file_path", "")):
         return
     response = event.get("tool_response")
-    signal.signal(signal.SIGALRM, _deadline_reached)
-    signal.alarm(DEADLINE_SECONDS)
+    _arm_deadline()
     with_images, note = False, None
     try:
         import image
@@ -163,8 +179,7 @@ def _pasted_images_to_block(event: dict) -> tuple[list[str], bool]:
     if not image.available():
         return [], True
     # Claude Code sends the prompt when the hook times out, so the hook must give up first and block.
-    signal.signal(signal.SIGALRM, _deadline_reached)
-    signal.alarm(DEADLINE_SECONDS)
+    disarm = _arm_deadline()
     blocked = []
     for i, path in enumerate(paths):
         try:
@@ -175,7 +190,7 @@ def _pasted_images_to_block(event: dict) -> tuple[list[str], bool]:
             break
         except Exception:
             blocked.append(str(path))
-    signal.alarm(0)
+    disarm()
     return blocked, False
 
 

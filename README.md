@@ -29,8 +29,8 @@ Reduz o vazamento por descuido, não o elimina. Antes de usar com dado real, lei
 1. Reinicie o Claude Code.
 2. Peça: "roda o `pii-selfcheck`". Tem de terminar em `all good`.
 
-Requer Linux ou macOS e Python 3.10+.
-Para mascarar imagem, instale o `tesseract`:
+Requer Python 3.10+. No Windows, também o Git for Windows.
+Imagem só é mascarada com o `tesseract` instalado; sem ele, passa com aviso:
 
 ```
 apt install tesseract-ocr   # ou: brew install tesseract

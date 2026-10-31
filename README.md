@@ -7,7 +7,15 @@ Plugin do Claude Code. Troca CPF, CNPJ, email e telefone por tokens antes de o C
 - Mesmo valor, mesmo token: o Claude ainda conta, cruza e compara.
 - O valor real fica num cofre cifrado na sua máquina.
 
-![O Claude lê um CSV com nome, CPF e email e recebe tokens; um CPF colado na mensagem é barrado](docs/demo.gif)
+Reduz o vazamento por descuido, não o elimina. Antes de usar com dado real, leia os [limites](#limites).
+
+| Onde você usa o Claude | Status |
+|---|---|
+| Claude Code (terminal ou IDE) | ✅ Disponível: siga [Instalar](#instalar) |
+| Chat do Claude Desktop | 🚧 Em desenvolvimento, para o que os conectores (MCP) devolvem. O que você cola ou anexa não é mascarado: troque nome, CPF e email por apelidos |
+| claude.ai | Sem suporte: troque nome, CPF e email por apelidos antes de colar ou anexar |
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo.gif"><img alt="O Claude lê um CSV com nome, CPF e email e recebe tokens; um CPF colado na mensagem é barrado" src="docs/demo-light.gif"></picture>
 
 [Read in English](README.en.md)
 
@@ -34,7 +42,7 @@ apt install tesseract-ocr   # ou: brew install tesseract
 
 O valor real só é usado com a sua confirmação.
 
-![A consulta traz razão social e CNPJ e o Claude recebe tokens; o pii-exec pede confirmação antes de usar o valor real](docs/demo-banco.gif)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-banco.gif"><img alt="A consulta traz razão social e CNPJ e o Claude recebe tokens; o pii-exec pede confirmação antes de usar o valor real" src="docs/demo-banco-light.gif"></picture>
 
 **Texto num arquivo**, como uma anotação ou um email
 
@@ -57,7 +65,7 @@ Você escolhe que campo fica legível.
 
 **Imagem**
 
-![Uma imagem com CNPJ colada na mensagem é barrada; o Claude lê o arquivo e recebe o token no lugar do CNPJ](docs/demo-print.gif)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-print.gif"><img alt="Uma imagem com CNPJ colada na mensagem é barrada; o Claude lê o arquivo e recebe o token no lugar do CNPJ" src="docs/demo-print-light.gif"></picture>
 
 O hook lê o texto da imagem antes de o Claude ver.
 
@@ -94,8 +102,6 @@ Comandos e configurações: [docs/usage.md](docs/usage.md).
 
 Protege contra vazamento por descuido, não contra um modelo decidido a extrair o dado.
 O que o detector não reconhece passa como está: revise antes de enviar dado sensível.
-
-Funciona no Claude Code. No chat do Claude Desktop e no claude.ai, hook não roda e nada é mascarado. A extensão para o chat do Desktop está em desenvolvimento.
 
 Passam sem máscara:
 

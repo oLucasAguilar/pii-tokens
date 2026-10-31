@@ -1,8 +1,10 @@
-"""Upstream authentication: OAuth with the tokens kept encrypted on disk, and fixed headers on every request.
+"""Upstream authentication: OAuth with the tokens kept encrypted on disk, and fixed headers on every request
+to the upstream's host.
 
 The fixed headers are for an auth proxy in front of the upstream (Cloudflare Access service tokens, a
 gateway key). The OAuth flow builds its own requests (discovery, registration, token, refresh), which skip
-the client's default headers, so a request hook adds them instead.
+the client's default headers, so a request hook adds them instead. An authorization server on another host
+never gets them: they are secrets for the proxy in front of the upstream.
 """
 
 
@@ -34,9 +36,16 @@ DEFAULT_TIMEOUT = httpx2.Timeout(30.0, read=300.0)
 DEFAULT_CALLBACK_PORT = 47213
 
 
-def client_factory(fixed_headers: dict):
+def client_factory(url: str, fixed_headers: dict):
+    host = httpx2.URL(url).host
+
     async def add_headers(request):
-        request.headers.update(fixed_headers)
+        if request.url.host == host:
+            request.headers.update(fixed_headers)
+        else:
+            # A redirect copies the first request's headers.
+            for name in fixed_headers:
+                request.headers.pop(name, None)
 
     def factory(headers=None, timeout=None, auth=None, follow_redirects=False):
         return httpx2.AsyncClient(
@@ -142,5 +151,5 @@ def oauth(url: str, fixed_headers: dict, callback_port: int = 0) -> OAuth:
         client_name="pii-tokens",
         token_storage=token_store(),
         callback_port=callback_port or DEFAULT_CALLBACK_PORT,
-        httpx_client_factory=client_factory(fixed_headers),
+        httpx_client_factory=client_factory(url, fixed_headers),
     )

@@ -63,7 +63,7 @@ class Masker:
         """Decoded JSON: tables by column, strings as text blocks of their own."""
         if isinstance(value, dict):
             for table in self._tables:
-                masked = table(value, self._cell)
+                masked = table(value, self._cell, self.value)
                 if masked is not None:
                     return masked
             return {k: self.value(v) for k, v in value.items()}
@@ -71,6 +71,10 @@ class Masker:
             return [self.value(v) for v in value]
         if isinstance(value, str):
             return self.text(value)
+        if isinstance(value, int) and not isinstance(value, bool):
+            # A CPF or CNPJ stored as a number.
+            masked = self._loose(str(value))
+            return value if masked == str(value) else masked
         return value
 
     def unmask(self, arguments):
@@ -105,8 +109,9 @@ class Masker:
         if cell is None or isinstance(cell, bool):
             return cell
         kind = _column_kind(column)
-        if kind:
-            return pii.mask_cell(kind, str(cell), self.vault) if isinstance(cell, str) or kind == "DOC" else cell
+        if kind and (isinstance(cell, (str, int)) or kind == "DOC"):
+            masked = pii.mask_cell(kind, str(cell), self.vault)
+            return cell if isinstance(cell, int) and masked == str(cell) else masked
         return self.value(cell)
 
     def _real_value(self, token):

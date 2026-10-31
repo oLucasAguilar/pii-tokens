@@ -79,7 +79,7 @@ Comandos e configurações: [docs/usage.md](docs/usage.md).
 
 **Claude Desktop**
 
-No chat do Desktop, hook não roda. Para um servidor MCP ali, use a extensão do Desktop: [docs/desktop.md](docs/desktop.md).
+No chat do Desktop, hook não roda. Para um servidor MCP ali, use a extensão do Desktop, que mascara só o que o servidor devolve: [docs/desktop.md](docs/desktop.md).
 
 ## O que é mascarado
 

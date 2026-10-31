@@ -11,6 +11,7 @@ Claude Desktop ──> pii-tokens (no seu computador) ──> servidor MCP
 
 - A máscara é a mesma do plugin, com o mesmo cofre e os mesmos tokens.
 - Funciona com servidor MCP remoto (HTTP), com ou sem OAuth.
+- **Protege só o que o servidor devolve.** O que você digita ou anexa no chat, e o que chega por outro conector, vai direto ao modelo.
 - **Use no modo Claude** (o chat, ícone à esquerda do `</>`). No modo Code a extensão não chega à sessão; lá, quem protege é o plugin.
 - Testado no Claude Desktop 4.29 para Windows, com o [Metabase](#metabase).
 
@@ -29,7 +30,7 @@ Não adicione o mesmo servidor também como conector direto: por ali o resultado
 | MCP server URL | O servidor que o Claude alcança pela extensão |
 | Authentication | `oauth` abre a tela de login do servidor no navegador no primeiro uso. Vazio: sem login |
 | Preset | Regras prontas para um servidor conhecido, como `metabase`. Vazio: as regras genéricas |
-| Extra headers | JSON enviado em toda requisição, para um proxy de autenticação na frente do servidor |
+| Extra headers | JSON enviado em toda requisição ao host do servidor, para um proxy de autenticação na frente dele |
 | Also allow / Block these tools | Nomes de ferramenta, separados por vírgula, para liberar ou bloquear |
 | Unmask in queries | Tipos (`CPF`, `CNPJ`, `EMAIL`, `PHONE`) cujo token vira o valor real no que o Claude envia |
 
@@ -65,7 +66,6 @@ Ligado, o Claude filtra pelo valor real sem lê-lo, mas uma consulta torta traz 
 Valem também os de [limits.md](limits.md). Além deles:
 
 - **Coluna renomeada passa.** O nome é achado pela coluna, então `SELECT nome AS titulo` traz o nome sem máscara.
-- **O que você digita ou anexa no chat não é mascarado.** Sem hook, vai direto ao modelo. Para isso, use o modo Code com o plugin.
 - **Resultado em formato desconhecido é retido**, não repassado: o Claude recebe um aviso no lugar.
 - **Bloco que não é texto** (imagem, recurso embutido) também é retido.
 

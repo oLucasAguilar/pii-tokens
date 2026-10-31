@@ -11,6 +11,7 @@ Claude Desktop ──> pii-tokens (on your computer) ──> MCP server
 
 - The masking is the plugin's, with the same vault and the same tokens.
 - Works with a remote (HTTP) MCP server, with or without OAuth.
+- **It protects only what the server returns.** What you type or attach in the chat, and what comes through another connector, goes straight to the model.
 - **Use it in Claude mode** (the chat, the icon left of `</>`). In Code mode the extension does not reach the session; there, the plugin protects.
 - Tested in Claude Desktop 4.29 for Windows, with [Metabase](#metabase).
 
@@ -29,7 +30,7 @@ Do not also add the same server as a direct connector: that way results reach Cl
 | MCP server URL | The server Claude reaches through the extension |
 | Authentication | `oauth` opens the server's sign-in page in your browser on first use. Empty: no sign-in |
 | Preset | Ready-made rules for a known server, such as `metabase`. Empty: the generic rules |
-| Extra headers | JSON sent on every request, for an auth proxy in front of the server |
+| Extra headers | JSON sent on every request to the server's host, for an auth proxy in front of it |
 | Also allow / Block these tools | Comma-separated tool names to allow or block |
 | Unmask in queries | Kinds (`CPF`, `CNPJ`, `EMAIL`, `PHONE`) whose token becomes the real value in what Claude sends |
 
@@ -65,7 +66,6 @@ Turned on, Claude filters by the real value without reading it, but a crafted qu
 Those in [limits.en.md](limits.en.md) apply too. Besides them:
 
 - **A renamed column passes.** Names are found by column, so `SELECT name AS title` returns the name unmasked.
-- **What you type or attach in the chat is not masked.** Without a hook, it goes straight to the model. For that, use Code mode with the plugin.
 - **A result in an unknown shape is withheld**, not passed on: Claude gets a notice instead.
 - **A block that is not text** (image, embedded resource) is withheld too.
 

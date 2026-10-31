@@ -18,12 +18,13 @@ ENVELOPE = Format(
 )
 
 
-def _query_result(value, mask_cell):
+def _query_result(value, mask_cell, mask_value):
     if not (isinstance(value, dict) and isinstance(value.get("cols"), list) and isinstance(value.get("rows"), list)):
         return None
     columns = [str(col.get("name", "")) for col in value["cols"]]
     rows = [[mask_cell(columns[i] if i < len(columns) else "", cell) for i, cell in enumerate(row)] for row in value["rows"]]
-    return {**value, "rows": rows}
+    # The rest still goes through the masking: an unmasked CPF in a SELECT comes back as a column name.
+    return {k: rows if k == "rows" else mask_value(v) for k, v in value.items()}
 
 
 # Rows come apart from their columns, so a name is found by its column, the way the plugin masks a psql table.

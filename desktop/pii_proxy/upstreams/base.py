@@ -18,7 +18,8 @@ class Format:
     """A layout an upstream uses for personal data, which the masking must read to find names.
 
     wrapper: text around a JSON payload, the payload in group 2.
-    table: the value with its cells masked by column, or None when the value is not this table.
+    table: called as table(value, mask_cell, mask_value); the value with its cells masked by column and every
+        other key by mask_value, or None when the value is not this table.
     hint: what this format's data looks like; seen outside the format, the result is withheld.
     """
 

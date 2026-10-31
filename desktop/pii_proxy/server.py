@@ -123,7 +123,7 @@ def upstream_transport(settings: Settings) -> StreamableHttpTransport:
     return StreamableHttpTransport(
         settings.url,
         auth=auth.oauth(settings.url, settings.headers, settings.oauth_port) if settings.oauth else None,
-        httpx_client_factory=auth.client_factory(settings.headers),
+        httpx_client_factory=auth.client_factory(settings.url, settings.headers),
     )
 
 

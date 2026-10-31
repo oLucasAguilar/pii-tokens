@@ -53,7 +53,7 @@
     "headers": {
       "type": "string",
       "title": "Extra headers (JSON)",
-      "description": "Sent on every request, sign-in included. For an auth proxy in front of the server, such as {\"CF-Access-Client-Id\": \"...\", \"CF-Access-Client-Secret\": \"...\"}",
+      "description": "Sent on every request to the server's host, sign-in included. For an auth proxy in front of the server, such as {\"CF-Access-Client-Id\": \"...\", \"CF-Access-Client-Secret\": \"...\"}",
       "sensitive": true,
       "default": ""
     },

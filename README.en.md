@@ -70,7 +70,7 @@ Commands and settings: [docs/usage.en.md](docs/usage.en.md).
 
 **Claude Desktop**
 
-In Desktop chat, hooks do not run. For an MCP server there, use the Desktop extension: [docs/desktop.en.md](docs/desktop.en.md).
+In Desktop chat, hooks do not run. For an MCP server there, use the Desktop extension, which masks only what the server returns: [docs/desktop.en.md](docs/desktop.en.md).
 
 ## What gets masked
 

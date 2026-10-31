@@ -59,6 +59,21 @@ check("query: a name column is masked by column, not by value", masked["rows"][0
 check("query: a CPF is masked", masked["rows"][0][2].startswith("CPF#"))
 check("query: ids stay numbers", masked["rows"][0][0] == 1)
 check("query: column names stay readable", [c["name"] for c in masked["cols"]] == ["ID", "NAME", "DOCUMENTO"])
+check("query: the other keys keep their values", masked["query_handle"] == "00000000-0000-0000-0000-000000000000")
+
+# A CPF unmasked in `SELECT 1 AS "CPF#..."` comes back as a column name; any key besides the rows is masked too.
+outside = json.loads(query_result([cpf], [[1]]))
+outside["native_form"] = {"query": f"SELECT '{cpf}'"}
+masked = masker.text(json.dumps(outside))
+check("query: a CPF outside the rows is masked", cpf not in masked and masked.count("CPF#") == 3)
+
+digits = int(cpf.replace(".", "").replace("-", ""))
+masked = json.loads(masker.text(query_result(["ID_FISCAL"], [[digits], [42]])))
+check("query: a CPF stored as a number is masked", str(masked["rows"][0][0]).startswith("CPF#"))
+masked = json.loads(masker.text(query_result(["ID_FISCAL"], [[digits], [42], [20261031123456], [digits + 1]])))
+check("query: other numbers stay numbers", [r[0] for r in masked["rows"][1:]] == [42, 20261031123456, digits + 1])
+masked = json.loads(masker.text(query_result(["CELULAR"], [[11987654321]])))
+check("query: a phone stored as a number is masked by its column", not str(masked["rows"][0][0]).isdigit())
 
 email = "maria.souza@exemplo.test"
 
@@ -235,24 +250,41 @@ if fastmcp:
     from pii_proxy import auth
 
     async def headers_on_a_raw_request():
-        client = auth.client_factory({"CF-Access-Client-Id": "id-123"})()
-        request = httpx2.Request("POST", "http://upstream.invalid/oauth/token")
-        for hook in client.event_hooks["request"]:
-            await hook(request)
+        client = auth.client_factory("http://upstream.invalid/mcp", {"CF-Access-Client-Id": "id-123"})()
+        requests = [httpx2.Request("POST", "http://upstream.invalid/oauth/token"), httpx2.Request("POST", "https://login.invalid/token")]
+        for request in requests:
+            for hook in client.event_hooks["request"]:
+                await hook(request)
         await client.aclose()
-        return request.headers.get("CF-Access-Client-Id")
+        return [request.headers.get("CF-Access-Client-Id") for request in requests]
 
-    check("auth: fixed headers reach requests the OAuth flow builds itself", asyncio.run(headers_on_a_raw_request()) == "id-123")
+    sent = asyncio.run(headers_on_a_raw_request())
+    check("auth: fixed headers reach requests the OAuth flow builds itself", sent[0] == "id-123")
+    check("auth: fixed headers never go to another host", sent[1] is None)
+
+    async def headers_after_a_redirect():
+        def upstream(request):
+            if request.url.host == "upstream.invalid":
+                return httpx2.Response(302, headers={"Location": "https://other.invalid/landing"})
+            return httpx2.Response(200, json={"seen": request.headers.get("CF-Access-Client-Id")})
+
+        client = auth.client_factory("http://upstream.invalid/mcp", {"CF-Access-Client-Id": "id-123"})(follow_redirects=True)
+        client._transport = httpx2.MockTransport(upstream)
+        response = await client.get("http://upstream.invalid/mcp")
+        await client.aclose()
+        return response.json()["seen"]
+
+    check("auth: fixed headers do not follow a redirect to another host", asyncio.run(headers_after_a_redirect()) is None)
 
     async def called_like_the_transport():
-        client = auth.client_factory({})(headers={}, auth=None, follow_redirects=True)
+        client = auth.client_factory("http://upstream.invalid/mcp", {})(headers={}, auth=None, follow_redirects=True)
         await client.aclose()
         return client.follow_redirects
 
     check("auth: the factory takes follow_redirects, as the HTTP transport passes it", asyncio.run(called_like_the_transport()) is True)
 
     async def default_timeouts():
-        client = auth.client_factory({})()
+        client = auth.client_factory("http://upstream.invalid/mcp", {})()
         await client.aclose()
         return client.timeout.connect, client.timeout.read
 

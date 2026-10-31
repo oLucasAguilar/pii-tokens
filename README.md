@@ -93,6 +93,9 @@ Comandos e configurações: [docs/usage.md](docs/usage.md).
 ## Limites
 
 Protege contra vazamento por descuido, não contra um modelo decidido a extrair o dado.
+O que o detector não reconhece passa como está: revise antes de enviar dado sensível.
+
+Funciona no Claude Code. No chat do Claude Desktop e no claude.ai, hook não roda e nada é mascarado. A extensão para o chat do Desktop está em desenvolvimento.
 
 Passam sem máscara:
 

@@ -84,6 +84,9 @@ Commands and settings: [docs/usage.en.md](docs/usage.en.md).
 ## Limits
 
 It protects against accidental leaks, not against a model set on extracting the data.
+Whatever the detector does not recognize goes through as is: review before sending sensitive data.
+
+It works in Claude Code. In Claude Desktop chat and on claude.ai, hooks do not run and nothing is masked. An extension for Desktop chat is in development.
 
 These get through unmasked:
 

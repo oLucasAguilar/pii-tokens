@@ -5,12 +5,20 @@ data="${CLAUDE_PLUGIN_DATA:?}"
 mkdir -p "$data"
 if [ "$OS" = Windows_NT ]; then
   # Git Bash copies instead of linking, and a copied pii-* cannot find ../scripts. Write launchers for this
-  # version instead: one for Git Bash, and a .cmd so PowerShell and cmd can run them too.
+  # version instead: one for Git Bash, and a .cmd so PowerShell and cmd can run them too. Paths are relative
+  # to the launcher, so the user folder, whose accents cmd.exe may misread, is never written into them.
+  plugins=${data%/data/*}
+  case $root in
+    "$plugins"/*) sh_root="\$(dirname \"\$0\")/../../..${root#"$plugins"}"
+                  cmd_root="%~dp0..\\..\\..$(printf %s "${root#"$plugins"}" | tr / '\\')" ;;
+    *) sh_root=$root; cmd_root=$(cygpath -w "$root") ;;
+  esac
   rm -rf "$data/bin" && mkdir "$data/bin"
   for cmd in "$root"/bin/*; do
     name=$(basename "$cmd")
-    printf '#!/bin/sh\nexec "%s" "$@"\n' "$cmd" > "$data/bin/$name"
-    printf '@"%s" "%s" %s %%*\r\n' "$(cygpath -w "$data/venv/Scripts/python.exe")" "$(cygpath -w "$root/scripts/cli.py")" "$name" > "$data/bin/$name.cmd"
+    printf '#!/bin/sh\nexec "%s/bin/%s" "$@"\n' "$sh_root" "$name" > "$data/bin/$name"
+    # Without the plugin venv, fall back to the system Python, like run.sh.
+    printf '@setlocal\r\n@set "py=%%~dp0..\\venv\\Scripts\\python.exe"\r\n@if not exist "%%py%%" set "py=python"\r\n@"%%py%%" "%s\\scripts\\cli.py" %s %%*\r\n' "$cmd_root" "$name" > "$data/bin/$name.cmd"
   done
 else
   ln -sfn "$root/bin" "$data/bin"

@@ -46,7 +46,7 @@ On Windows (PowerShell), once, then reopen the terminal:
 ```
 
 - `pii-unmask` and `pii-allow` only work this way: they run in an interactive terminal, so Claude cannot use them on its own.
-- The folder is a link the plugin refreshes on every session, so it survives updates.
+- The plugin rebuilds the folder on every session (on Windows, with launchers instead of the link), so it survives updates.
 
 ## Settings
 

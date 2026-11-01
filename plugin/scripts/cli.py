@@ -71,7 +71,8 @@ def _clean_old_reveals():
 
 def _open_in_editor(path: Path):
     if platform.system() == "Windows":
-        os.startfile(path)
+        # Not os.startfile: the copy keeps its extension, and Windows runs a .bat, .js or .py instead of showing it.
+        subprocess.Popen(["notepad.exe", str(path)])
         return
     opener = "open" if platform.system() == "Darwin" else "xdg-open"
     subprocess.Popen([opener, str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

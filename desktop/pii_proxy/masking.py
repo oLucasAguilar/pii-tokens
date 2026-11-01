@@ -66,7 +66,7 @@ class Masker:
                 masked = table(value, self._cell, self.value)
                 if masked is not None:
                     return masked
-            return {self._loose(k) if isinstance(k, str) else k: self.value(v) for k, v in value.items()}
+            return {self.written(k) if isinstance(k, str) else k: self.value(v) for k, v in value.items()}
         if isinstance(value, list):
             return [self.value(v) for v in value]
         if isinstance(value, str):
@@ -92,6 +92,20 @@ class Masker:
         if isinstance(arguments, str):
             return pii.TOKEN_RE.sub(lambda m: self._real_value(m.group(0)), arguments)
         return arguments
+
+    def written(self, text: str) -> str:
+        """Text the server writes itself (instructions, tool texts, field names): masked by format only.
+        It is not data, so a passage that looks like data, such as a server's note about its
+        <data boundary> blocks, is not withheld."""
+        return pii.mask_text(text, self.vault)
+
+    def schema(self, value):
+        """A tool's input schema: strings and keys masked by format, numbers and structure untouched."""
+        if isinstance(value, dict):
+            return {self.written(k): self.schema(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [self.schema(v) for v in value]
+        return self.written(value) if isinstance(value, str) else value
 
     def _loose(self, text):
         if self._hint and self._hint.search(text):

@@ -66,7 +66,7 @@ Ligado, o Claude filtra pelo valor real sem lê-lo, mas uma consulta torta traz 
 
 Valem também os de [limits.md](limits.md). Além deles:
 
-- **CPF como número com casas decimais** (`52998224725.0`) passa, fora de uma coluna com nome de documento.
+- **CPF como número com casas decimais** (com `.0` no fim) passa, fora de uma coluna com nome de documento.
 - **Servidor que redireciona de https para http** com `Extra headers` preenchido: a chamada falha, com o motivo, para o login não ir sem criptografia.
 - **Coluna renomeada passa.** O nome é achado pela coluna, então `SELECT nome AS titulo` traz o nome sem máscara.
 - **Resultado em formato desconhecido é retido**, não repassado: o Claude recebe um aviso no lugar.

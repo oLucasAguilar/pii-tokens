@@ -80,7 +80,7 @@ class InstructionsMiddleware(Middleware):
 
     def _masked(self, result):
         if getattr(result, "instructions", None):
-            return result.model_copy(update={"instructions": self.masker.text(result.instructions)})
+            return result.model_copy(update={"instructions": self.masker.written(result.instructions)})
         return result
 
     async def on_initialize(self, context, call_next):
@@ -102,9 +102,12 @@ class MaskingMiddleware(Middleware):
         return [
             t.model_copy(update={
                 "output_schema": None,
-                "title": t.title and self.masker.text(t.title),
-                "description": t.description and self.masker.text(t.description),
-                "parameters": self.masker.value(t.parameters),
+                "title": t.title and self.masker.written(t.title),
+                "description": t.description and self.masker.written(t.description),
+                "parameters": self.masker.schema(t.parameters),
+                "annotations": t.annotations and t.annotations.model_copy(
+                    update={"title": t.annotations.title and self.masker.written(t.annotations.title)}),
+                "meta": None,
             })
             for t in tools
             if self.settings.allows(t)

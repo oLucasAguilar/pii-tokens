@@ -66,7 +66,7 @@ Turned on, Claude filters by the real value without reading it, but a crafted qu
 
 Those in [limits.en.md](limits.en.md) apply too. Besides them:
 
-- **A CPF as a number with decimals** (`52998224725.0`) passes, outside a column named after a document.
+- **A CPF as a number with decimals** (ending in `.0`) passes, outside a column named after a document.
 - **A server that redirects from https to http** with `Extra headers` set: the call fails, saying why, so the sign-in is not sent unencrypted.
 - **A renamed column passes.** Names are found by column, so `SELECT name AS title` returns the name unmasked.
 - **A result in an unknown shape is withheld**, not passed on: Claude gets a notice instead.

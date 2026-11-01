@@ -43,23 +43,29 @@ def _port(url: httpx2.URL):
 def client_factory(url: str, fixed_headers: dict):
     configured = httpx2.URL(url)
 
+    def _downgrade(target: httpx2.URL) -> bool:
+        return target.host == configured.host and configured.scheme == "https" and target.scheme == "http"
+
     async def add_headers(request):
         target = request.url
         same_host = target.host == configured.host
-        if fixed_headers and same_host and configured.scheme == "https" and target.scheme == "http":
-            raise httpx2.RequestError(
-                f"The server redirected from https to {target.scheme}://{target.host}, without encryption; "
-                "the extension did not send your sign-in headers. Check the server's https setup.",
-                request=request,
-            )
         same_origin = same_host and (target.scheme, _port(target)) == (configured.scheme, _port(configured))
-        upgrade = same_host and configured.scheme == "http" and target.scheme == "https"
+        upgrade = same_host and configured.scheme == "http" and target.scheme == "https" and _port(target) == 443
         if same_origin or upgrade:
             request.headers.update(fixed_headers)
         else:
-            # A redirect copies the first request's headers.
+            # A redirect copies the first request's headers; and over http they would travel unencrypted.
             for name in fixed_headers:
                 request.headers.pop(name, None)
+
+    async def refuse_downgrade(response):
+        # Following it, the request would arrive without the headers and fail for no visible reason.
+        if fixed_headers and response.is_redirect and _downgrade(response.request.url.join(response.headers["location"])):
+            raise httpx2.RequestError(
+                f"The server redirected from https to http://{configured.host}, without encryption; "
+                "the extension did not send your sign-in headers. Check the server's https setup.",
+                request=response.request,
+            )
 
     def factory(headers=None, timeout=None, auth=None, follow_redirects=False):
         return httpx2.AsyncClient(
@@ -67,7 +73,7 @@ def client_factory(url: str, fixed_headers: dict):
             timeout=timeout or DEFAULT_TIMEOUT,
             auth=auth,
             follow_redirects=follow_redirects,
-            event_hooks={"request": [add_headers]},
+            event_hooks={"request": [add_headers], "response": [refuse_downgrade]},
         )
 
     return factory

@@ -620,6 +620,12 @@ if image_module.available():
     formatted_cnpj = f"{image_cnpj[:2]}.{image_cnpj[2:5]}.{image_cnpj[5:8]}/{image_cnpj[8:12]}-{image_cnpj[12:]}"
     with_cnpj = screenshot(formatted_cnpj)
     check("image control: OCR reads the CNPJ in the test image", image_cnpj in digits_seen(with_cnpj))
+    on_disk = SANDBOX / "shot-on-disk.png"
+    on_disk.write_bytes(with_cnpj)
+    copy_reads_worse = screenshot("nothing to see here")  # stands for the copy Claude Code hands the hook
+    from_disk = hook("post", {"tool_name": "Read", "tool_input": {"file_path": str(on_disk)}, "tool_response": read_image(copy_reads_worse)})
+    check("Read of an image file: the file on disk is OCR'd too, and what it finds is masked in the copy",
+          "CNPJ#" in from_disk)
     zero_check = next(c for c in (fake_cpf(s) for s in range(200)) if c[9] == "0")
     misread = f"{zero_check[:3]}.{zero_check[3:6]}.{zero_check[6:9]}-@{zero_check[10]}"
     split = [{"text": part, "block_num": 1, "par_num": 1, "line_num": 1, "left": 10 * i, "top": 0, "width": 9, "height": 9}

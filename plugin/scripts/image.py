@@ -148,8 +148,14 @@ def has_personal_data(data: bytes) -> bool:
     return bool(_find(data, pii.Vault(store=False))[2])
 
 
-def mask_image(data: bytes, vault) -> tuple[bytes, list[str]]:
+def mask_image(data: bytes, vault, source: bytes | None = None) -> tuple[bytes, list[str]]:
     image, fmt, hits = _find(data, vault)
+    if source:
+        # The copy Claude Code hands the hook can read worse than the file it came from: OCR the file too,
+        # and draw what it finds on the copy, at the copy's scale.
+        original, _, found = _find(source, vault)
+        sx, sy = image.width / original.width, image.height / original.height
+        hits += [((int(l * sx), int(t * sy), int(r * sx), int(b * sy)), label) for (l, t, r, b), label in found]
     if not hits:
         return data, []
     for box, label in hits:
@@ -189,11 +195,11 @@ def has_image(value) -> bool:
     return bool(found)
 
 
-def mask_images(value, vault) -> tuple[object, list[str]]:
+def mask_images(value, vault, source: bytes | None = None) -> tuple[object, list[str]]:
     labels = []
 
     def mask(data: str) -> str:
-        masked, found = mask_image(base64.b64decode(data), vault)
+        masked, found = mask_image(base64.b64decode(data), vault, source)
         labels.extend(found)
         return base64.b64encode(masked).decode() if found else data
 

@@ -82,12 +82,13 @@ def _arm_deadline():
     return timer.cancel
 
 
-def _mask_images(image, response, vault):
+def _mask_images(image, response, vault, source_path: str = ""):
     """The response with its images masked (blank when masking fails), and the note for Claude."""
     if not image.available():
         return response, IMAGE_UNCHECKED
     try:
-        masked, labels = image.mask_images(response, vault)
+        source = Path(source_path).read_bytes() if source_path and Path(source_path).is_file() else None
+        masked, labels = image.mask_images(response, vault, source)
     except Exception as e:
         # The output must keep the image shape, or Claude Code falls back to the original.
         return image.blank_images(response, BLANK_PNG), f"[pii-tokens] image withheld: masking failed ({type(e).__name__}: {e})"
@@ -112,7 +113,8 @@ def post(event: dict) -> None:
         with_images = image.has_image(response)
         vault = pii.Vault()
         if with_images:
-            response_images, note = _mask_images(image, response, vault)
+            source = event.get("tool_input", {}).get("file_path", "") if event.get("tool_name") == "Read" else ""
+            response_images, note = _mask_images(image, response, vault, source)
             text_only = image.replace_images(response_images, "")  # base64 is never text to mask
         else:
             text_only = response

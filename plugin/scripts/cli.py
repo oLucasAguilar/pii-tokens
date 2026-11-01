@@ -70,6 +70,9 @@ def _clean_old_reveals():
 
 
 def _open_in_editor(path: Path):
+    if platform.system() == "Windows":
+        os.startfile(path)
+        return
     opener = "open" if platform.system() == "Darwin" else "xdg-open"
     subprocess.Popen([opener, str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 

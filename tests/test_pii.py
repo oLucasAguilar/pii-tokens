@@ -703,6 +703,11 @@ if image_module.available():
     timed_out, _ = hook_module._pasted_images_to_block({**pasted, "prompt": "[Image #1] [Image #2]"})
     image_module.has_personal_data = real_check
     check("pasted images not checked in time: all blocked, none sent unchecked", len(timed_out) == 2)
+    desktop_blocked = hook("prompt", {**pasted, "prompt": "what is this?"})
+    check("Claude Desktop: an image pasted without the [Image #N] mark is checked and blocked", '"block"' in desktop_blocked)
+    project.mkdir(parents=True, exist_ok=True)
+    (project / f"{session}.jsonl").write_text("{}\n")  # a later message: the images above were already checked
+    check("Claude Desktop: images from earlier messages are not checked again", hook("prompt", {**pasted, "prompt": "and now?"}) == "")
     missing, _ = hook_module._pasted_images_to_block({**pasted, "prompt": "[Image #9] what is this?"})
     check("a pasted image whose file is not found is blocked, not sent unchecked", len(missing) == 1)
     real_getuid = os.getuid

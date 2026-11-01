@@ -221,10 +221,16 @@ def pasted_images(event: dict) -> list[Path]:
     """The files Claude Code saved for the images pasted into this prompt."""
     numbers = PASTED_IMAGE.findall(event.get("prompt", ""))
     transcript, session = event.get("transcript_path"), event.get("session_id")
-    if not numbers or not transcript or not session:
+    if not transcript or not session:
         return []
     # Windows has no user id: Claude Code keeps them in %TEMP%\\claude there.
     user_folder = f"claude-{os.getuid()}" if hasattr(os, "getuid") else "claude"
     folder = Path(tempfile.gettempdir()) / user_folder / Path(transcript).parent.name / session / "images"
+    if not numbers:
+        # Claude Desktop attaches a pasted image without the [Image #N] mark: take the ones saved since the last message.
+        if not folder.is_dir():
+            return []
+        since = Path(transcript).stat().st_mtime if Path(transcript).exists() else 0
+        return sorted(p for p in folder.iterdir() if p.is_file() and p.stat().st_mtime > since)
     # A pasted image whose file is not found cannot be checked; its missing path makes the check fail, and block.
     return [next(iter(sorted(folder.glob(f"{n}.*"))), folder / f"{n}.missing") for n in dict.fromkeys(numbers)]

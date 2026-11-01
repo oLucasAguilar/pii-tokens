@@ -150,17 +150,18 @@ def _mentioned_files_with_pii(pii, text: str, cwd: str) -> list[str]:
     return found
 
 
-CLIPBOARD_COMMANDS = (["wl-copy"], ["xclip", "-selection", "clipboard"], ["pbcopy"])
+# Windows clip reads UTF-16 with its byte order mark; the others read UTF-8.
+CLIPBOARD_COMMANDS = ((["wl-copy"], "utf-8"), (["xclip", "-selection", "clipboard"], "utf-8"), (["pbcopy"], "utf-8"), (["clip"], "utf-16"))
 
 
 def _copy_to_clipboard(text: str) -> bool:
     import shutil
 
-    for command in CLIPBOARD_COMMANDS:
+    for command, encoding in CLIPBOARD_COMMANDS:
         if not shutil.which(command[0]):
             continue
         try:
-            done = subprocess.run(command, input=text.encode(), stdout=subprocess.DEVNULL,
+            done = subprocess.run(command, input=text.encode(encoding), stdout=subprocess.DEVNULL,
                                   stderr=subprocess.DEVNULL, timeout=3)
         except (OSError, subprocess.TimeoutExpired):
             continue

@@ -19,9 +19,9 @@ import pii
 SCALE = 3
 PAD = 2
 RETRY = "retry"
-OCR_DIGIT_FIXES = str.maketrans("OoIlSB", "001158")
+OCR_DIGIT_FIXES = str.maketrans("OoIlSB@", "0011580")
 PASTED_IMAGE = re.compile(r"\[Image #(\d+)\]")
-DOCUMENT_SHAPE = re.compile(r"\d[\dOoIl. /-]*[\dOoIl]")  # O, o, I, l: digits OCR commonly misreads
+DOCUMENT_SHAPE = re.compile(r"\d[\dOoIl@. /-]*[\dOoIl@]")  # O, o, I, l, @: digits OCR commonly misreads
 
 
 def _tesseract() -> str | None:

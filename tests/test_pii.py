@@ -620,6 +620,10 @@ if image_module.available():
     formatted_cnpj = f"{image_cnpj[:2]}.{image_cnpj[2:5]}.{image_cnpj[5:8]}/{image_cnpj[8:12]}-{image_cnpj[12:]}"
     with_cnpj = screenshot(formatted_cnpj)
     check("image control: OCR reads the CNPJ in the test image", image_cnpj in digits_seen(with_cnpj))
+    zero_check = next(c for c in (fake_cpf(s) for s in range(200)) if c[9] == "0")
+    misread = f"{zero_check[:3]}.{zero_check[3:6]}.{zero_check[6:9]}-@{zero_check[10]}"
+    check("OCR reading a 0 as @ in a CPF still finds the CPF (seen on Windows)",
+          (image_module._label(misread, pii.Vault(store=False)) or "").startswith("CPF#"))
     check("an image that shows only a token is not personal data, and one with the CNPJ is",
           not image_module.has_personal_data(screenshot("CPF#2e35b333ae55")) and image_module.has_personal_data(with_cnpj))
 

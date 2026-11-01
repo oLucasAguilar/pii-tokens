@@ -107,9 +107,9 @@ def cmd_exec(args):
     if result.returncode != 0 or not result.stdout.strip():
         # A document token becomes its digits; a file that writes it with dots and dash would not match,
         # and an empty answer would read as "not there".
-        for token in _digits_only_tokens(args + ([raw_stdin] if raw_stdin else [])):
-            sys.stderr.write(f"[pii-tokens] {token} was replaced by its digits only. "
-                             f"If the file writes it with dots and dash, use {token}.fmt\n")
+        for token in _digits_only_tokens(args + ([raw_stdin] if raw_stdin else []), vault):
+            sys.stderr.write(f"[pii-tokens] {token} became its digits only. If nothing matched and the "
+                             f"file writes it with punctuation, use {token}.fmt\n")
     sys.exit(result.returncode)
 
 
@@ -133,11 +133,13 @@ def _unmask_formatted(text: str, vault) -> str:
     return FORMATTED_TOKEN_RE.sub(replace, text)
 
 
-def _digits_only_tokens(texts) -> list[str]:
+def _digits_only_tokens(texts, vault) -> list[str]:
+    """CPF and CNPJ tokens given back as digits: in the vault, and not asked for with .fmt."""
     found = []
     for text in texts:
         for m in pii.TOKEN_RE.finditer(text):
-            if m.group(1) in ("CPF", "CNPJ") and not text.startswith(".fmt", m.end()) and m.group(0) not in found:
+            if (m.group(1) in ("CPF", "CNPJ") and not FORMATTED_TOKEN_RE.match(text, m.start())
+                    and m.group(0) not in found and vault.value_for(m.group(0))):
                 found.append(m.group(0))
     return found
 

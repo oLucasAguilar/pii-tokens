@@ -312,3 +312,7 @@ zipp==4.1.2 ; python_version < "3.12" \
     --hash=sha256:b30cb6cd253122169c47de245ca24a86bac2a5d3802ba15bf7ba6414eb9e144d \
     --hash=sha256:cf474b90b07ea932637e17c6b9479de2b2882900b0d311bdaf4f5c000a15a97f
     # via keyring/cryptography on Python before 3.12
+pywin32-ctypes==0.2.3 ; sys_platform == "win32" \
+    --hash=sha256:8a1513379d709975552d202d942d9837758905c8d01eb82b8bcc30918929e7b8 \
+    --hash=sha256:d162dc04946d704503b2edc4d55f3dba5c1d539ead017afa00142c38b9885755
+    # via keyring on Windows

@@ -31,7 +31,8 @@ It reduces accidental leaks, it does not eliminate them. Before using it with re
 1. Restart Claude Code.
 2. Ask Claude to "run `pii-selfcheck`". It must end with `all good`.
 
-Needs Linux or macOS and Python 3.10+. Images also need `tesseract`.
+Needs Python 3.10+. On Windows, also Git for Windows.
+Images are masked only with `tesseract` installed; without it, they pass with a warning.
 
 ## In practice
 

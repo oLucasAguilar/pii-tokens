@@ -10,7 +10,7 @@ Na primeira sessão, o plugin instala as dependências dele, fixadas por hash, n
 
 - Se isso falhar, a máscara continua, mas os tokens aparecem como `CPF#????????` e não voltam.
 
-Para mascarar imagem, instale o `tesseract` (`apt install tesseract-ocr` ou `brew install tesseract`).
+Para mascarar imagem, instale o `tesseract` (`apt install tesseract-ocr`, `brew install tesseract`, ou no Windows o instalador em github.com/UB-Mannheim/tesseract, que pede administrador e aparece como "editor desconhecido").
 
 ## Conferir se funciona
 

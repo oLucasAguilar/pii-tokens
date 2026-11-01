@@ -8,7 +8,6 @@ pii-reveal and pii-exec.
 
 import base64
 import csv
-import fcntl
 import hashlib
 import hmac
 import io
@@ -18,8 +17,15 @@ import re
 import sqlite3
 import sys
 import unicodedata
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:  # Windows, where the desktop proxy runs
+    fcntl = None
+    import msvcrt
 
 CONFIG_PATH = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "pii-tokens" / "config.json"
 BUILTIN_ALLOWED_EMAIL_DOMAINS = ("example.com", "example.org", "users.noreply.github.com", "noreply.github.com")
@@ -217,6 +223,20 @@ def _normalized(kind: str, value: str) -> str:
     return value.strip() if kind == "TERM" else value.strip().lower()
 
 
+@contextmanager
+def _exclusive_lock(path: Path):
+    with open(path, "w") as lock:
+        if fcntl:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            yield
+            return
+        msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+        try:
+            yield
+        finally:
+            msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+
+
 class Vault:
     def __init__(self, store: bool = True):
         self.store = store
@@ -233,8 +253,7 @@ class Vault:
         from cryptography.fernet import Fernet
 
         DATA_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
-        with open(DATA_DIR / ".lock", "w") as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX)
+        with _exclusive_lock(DATA_DIR / ".lock"):
             hmac_key = keyring.get_password(KEYRING_SERVICE, "hmac")
             vault_key = keyring.get_password(KEYRING_SERVICE, "vault")
             if not hmac_key or not vault_key:

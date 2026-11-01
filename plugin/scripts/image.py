@@ -229,10 +229,15 @@ def pasted_images(event: dict) -> list[Path]:
     user_folder = f"claude-{os.getuid()}" if hasattr(os, "getuid") else "claude"
     folder = Path(tempfile.gettempdir()) / user_folder / Path(transcript).parent.name / session / "images"
     if not numbers:
-        # Claude Desktop attaches a pasted image without the [Image #N] mark: take the ones saved since the last message.
+        # Claude Desktop attaches a pasted image without the [Image #N] mark: take the ones not checked before.
         if not folder.is_dir():
             return []
-        since = Path(transcript).stat().st_mtime if Path(transcript).exists() else 0
-        return sorted(p for p in folder.iterdir() if p.is_file() and p.stat().st_mtime > since)
+        seen_file = pii.DATA_DIR / "pasted-checked" / f"{session}.txt"
+        seen = set(seen_file.read_text().split()) if seen_file.exists() else set()
+        new = sorted(p for p in folder.iterdir() if p.is_file() and p.name not in seen)
+        if new:
+            seen_file.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            seen_file.write_text("\n".join(sorted(seen | {p.name for p in new})))
+        return new
     # A pasted image whose file is not found cannot be checked; its missing path makes the check fail, and block.
     return [next(iter(sorted(folder.glob(f"{n}.*"))), folder / f"{n}.missing") for n in dict.fromkeys(numbers)]

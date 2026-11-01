@@ -713,11 +713,13 @@ if image_module.available():
     check("pasted images not checked in time: all blocked, none sent unchecked", len(timed_out) == 2)
     desktop_blocked = hook("prompt", {**pasted, "prompt": "what is this?"})
     check("Claude Desktop: an image pasted without the [Image #N] mark is checked and blocked", '"block"' in desktop_blocked)
-    project.mkdir(parents=True, exist_ok=True)
-    (project / f"{session}.jsonl").write_text("{}\n")  # a later message: the images above were already checked
-    check("Claude Desktop: images from earlier messages are not checked again", hook("prompt", {**pasted, "prompt": "and now?"}) == "")
+    check("Claude Desktop: images already checked are not checked again", hook("prompt", {**pasted, "prompt": "and now?"}) == "")
+    (pasted_dir / "3.png").write_bytes(with_cnpj)
+    check("Claude Desktop: a new image is checked whenever it was pasted", '"block"' in hook("prompt", {**pasted, "prompt": "and this?"}))
     missing, _ = hook_module._pasted_images_to_block({**pasted, "prompt": "[Image #9] what is this?"})
     check("a pasted image whose file is not found is blocked, not sent unchecked", len(missing) == 1)
+    not_found = hook("prompt", {**pasted, "prompt": "[Image #9] what is this?"})
+    check("that block says the image was not found, with no read request", "could not be found" in not_found and ".missing" not in not_found)
     real_getuid = os.getuid
     del os.getuid  # Windows: no user id, and Claude Code keeps pasted images in %TEMP%\\claude
     try:

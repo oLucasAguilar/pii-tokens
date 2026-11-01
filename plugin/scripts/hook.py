@@ -213,6 +213,12 @@ def prompt(event: dict) -> None:
         })
         return
     images, unchecked = _pasted_images_to_block(event)
+    if any(path.endswith(".missing") for path in images):
+        emit({"decision": "block", "reason": (
+            "[pii-tokens] Prompt blocked: the pasted image could not be found to be checked for personal data. "
+            f"Save it to a file and ask Claude to read the file, or include `{PROMPT_ESCAPE}` to send it anyway."
+        )})
+        return
     if images:
         import image
 

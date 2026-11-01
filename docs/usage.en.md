@@ -84,7 +84,7 @@ All optional. Asked when the plugin is enabled, changed later with `/plugin conf
 - **CPF and CNPJ come back as digits only.** If the file writes them with punctuation, use `CPF#....fmt`. When the command finds nothing or fails, `pii-exec` reminds you.
 - **Every `pii-exec` with a token asks for your confirmation,** auto mode included. Read the command: `curl` or any network command would send the real value out, and a web page or a ticket can try to trick Claude into that.
 	- While the command runs, the real value is visible in the process list (`ps`).
-	- The question recognizes `pii-exec` written in the command, even with quotes or a backslash inside. A command built from a shell variable (`$X-exec`) is not recognized; then only Claude Code's own permission applies.
+	- The question recognizes `pii-exec` written in the command, even with quotes or a backslash inside. A command built from a shell variable (`$X-exec`) or called by a wildcard path (`.../bin/pii-exe?`) is not recognized; then only Claude Code's own permission applies.
 - **`pii-reveal` opens the copy in your editor,** outside Claude's reach.
 - **`pii-allow` is for values that are fine to send:** your company's CNPJ, your own email in `git log`.
 	- The allowlist keeps tokens, not values, so the config file holds no personal data.

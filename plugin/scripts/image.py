@@ -223,5 +223,8 @@ def pasted_images(event: dict) -> list[Path]:
     transcript, session = event.get("transcript_path"), event.get("session_id")
     if not numbers or not transcript or not session:
         return []
-    folder = Path(tempfile.gettempdir()) / f"claude-{os.getuid()}" / Path(transcript).parent.name / session / "images"
-    return [path for n in dict.fromkeys(numbers) for path in sorted(folder.glob(f"{n}.*"))[:1]]
+    # Windows has no user id: Claude Code keeps them in %TEMP%\\claude there.
+    user_folder = f"claude-{os.getuid()}" if hasattr(os, "getuid") else "claude"
+    folder = Path(tempfile.gettempdir()) / user_folder / Path(transcript).parent.name / session / "images"
+    # A pasted image whose file is not found cannot be checked; its missing path makes the check fail, and block.
+    return [next(iter(sorted(folder.glob(f"{n}.*"))), folder / f"{n}.missing") for n in dict.fromkeys(numbers)]

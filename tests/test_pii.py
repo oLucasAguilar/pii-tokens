@@ -703,6 +703,16 @@ if image_module.available():
     timed_out, _ = hook_module._pasted_images_to_block({**pasted, "prompt": "[Image #1] [Image #2]"})
     image_module.has_personal_data = real_check
     check("pasted images not checked in time: all blocked, none sent unchecked", len(timed_out) == 2)
+    missing, _ = hook_module._pasted_images_to_block({**pasted, "prompt": "[Image #9] what is this?"})
+    check("a pasted image whose file is not found is blocked, not sent unchecked", len(missing) == 1)
+    real_getuid = os.getuid
+    del os.getuid  # Windows: no user id, and Claude Code keeps pasted images in %TEMP%\\claude
+    try:
+        windows_paths = image_module.pasted_images({**pasted, "prompt": "[Image #1]"})
+    finally:
+        os.getuid = real_getuid
+    check("on Windows, pasted images are looked up in the claude temp folder",
+          windows_paths and windows_paths[0].parent == Path(tempfile.gettempdir()) / "claude" / project.name / session / "images")
     shutil.rmtree(pasted_dir.parent.parent, ignore_errors=True)
 else:
     print("skip image tests: tesseract or Pillow missing")

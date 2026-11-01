@@ -62,7 +62,9 @@ def _label(text: str, vault) -> str | None:
     found = _tokens(text, vault)
     if found or not _looks_like_document(text):
         return found
-    return _tokens(text.translate(OCR_DIGIT_FIXES), vault) or RETRY
+    fixed = text.translate(OCR_DIGIT_FIXES)
+    # OCR may split one document in pieces ("123. 456. 789- 09"): try it without the spaces before rereading.
+    return _tokens(fixed, vault) or _tokens(re.sub(r"\s+", "", fixed), vault) or RETRY
 
 
 def _reread(enlarged, group: list[dict], vault) -> str | None:
@@ -90,7 +92,7 @@ def _hits(words: list[dict], vault, enlarged) -> list[tuple[tuple[int, int, int,
         lines.setdefault((w["block_num"], w["par_num"], w["line_num"]), []).append(w)
     hits, taken = [], set()
     for line in lines.values():
-        for size in (1, 2, 3):  # OCR splits "(11) 98765-4321" and "123.456.789 -09"; the narrowest match wins
+        for size in (1, 2, 3, 4, 5):  # OCR splits "(11) 98765-4321" and "123.456.789 -09"; the narrowest match wins
             for i in range(len(line) - size + 1):
                 group = line[i : i + size]
                 ids = {id(w) for w in group}

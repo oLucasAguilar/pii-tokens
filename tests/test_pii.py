@@ -622,6 +622,10 @@ if image_module.available():
     check("image control: OCR reads the CNPJ in the test image", image_cnpj in digits_seen(with_cnpj))
     zero_check = next(c for c in (fake_cpf(s) for s in range(200)) if c[9] == "0")
     misread = f"{zero_check[:3]}.{zero_check[3:6]}.{zero_check[6:9]}-@{zero_check[10]}"
+    split = [{"text": part, "block_num": 1, "par_num": 1, "line_num": 1, "left": 10 * i, "top": 0, "width": 9, "height": 9}
+             for i, part in enumerate(["Cliente", cpf_formatted[:4], cpf_formatted[4:8], cpf_formatted[8:12], cpf_formatted[12:]])]
+    check("a CPF the OCR splits in four words is still found (seen on Windows)",
+          any(label.startswith("CPF#") for _, label in image_module._hits(split, pii.Vault(store=False), None)))
     check("OCR reading a 0 as @ in a CPF still finds the CPF (seen on Windows)",
           (image_module._label(misread, pii.Vault(store=False)) or "").startswith("CPF#"))
     check("an image that shows only a token is not personal data, and one with the CNPJ is",

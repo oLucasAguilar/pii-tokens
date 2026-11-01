@@ -626,6 +626,8 @@ if image_module.available():
              for i, part in enumerate(["Cliente", cpf_formatted[:4], cpf_formatted[4:8], cpf_formatted[8:12], cpf_formatted[12:]])]
     check("a CPF the OCR splits in four words is still found (seen on Windows)",
           any(label.startswith("CPF#") for _, label in image_module._hits(split, pii.Vault(store=False), None)))
+    check("a text cursor read as ] next to a CPF does not hide it (seen on Windows)",
+          (image_module._label(cpf_formatted + "]", pii.Vault(store=False)) or "").startswith("CPF#"))
     check("the start of a CPF whose check digits OCR lost is reread (seen on Windows)",
           image_module._label(cpf_formatted[:11], pii.Vault(store=False)) == image_module.RETRY)
     check("OCR reading a 0 as @ in a CPF still finds the CPF (seen on Windows)",

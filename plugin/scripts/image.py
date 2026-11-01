@@ -63,6 +63,7 @@ CPF_START = re.compile(r"\d{3}\.\d{3}\.\d{3}-?")
 
 
 def _label(text: str, vault) -> str | None:
+    text = text.strip("[]|")  # a text cursor next to the number reads as one of these
     found = _tokens(text, vault)
     if not found and CPF_START.fullmatch(text):
         return RETRY

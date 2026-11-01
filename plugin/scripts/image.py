@@ -52,7 +52,9 @@ def _looks_like_document(text: str) -> bool:
 
 def _tokens(text: str, vault) -> str | None:
     masked = pii.mask_text(pii.normalize_pasted_documents(text), vault)
-    tokens = [m.group(0) for m in pii.TOKEN_RE.finditer(masked)]
+    # A token already on screen (a screenshot of a masked chat) is not personal data.
+    already = {m.group(0) for m in pii.TOKEN_RE.finditer(text)}
+    tokens = [m.group(0) for m in pii.TOKEN_RE.finditer(masked) if m.group(0) not in already]
     return " ".join(tokens) if tokens else None
 
 

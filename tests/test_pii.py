@@ -620,6 +620,8 @@ if image_module.available():
     formatted_cnpj = f"{image_cnpj[:2]}.{image_cnpj[2:5]}.{image_cnpj[5:8]}/{image_cnpj[8:12]}-{image_cnpj[12:]}"
     with_cnpj = screenshot(formatted_cnpj)
     check("image control: OCR reads the CNPJ in the test image", image_cnpj in digits_seen(with_cnpj))
+    check("an image that shows only a token is not personal data, and one with the CNPJ is",
+          not image_module.has_personal_data(screenshot("CPF#2e35b333ae55")) and image_module.has_personal_data(with_cnpj))
 
     out = json.loads(hook("post", {"tool_name": "Read", "tool_input": {"file_path": "/tmp/shot.png"},
                                    "tool_response": read_image(with_cnpj)}))["hookSpecificOutput"]

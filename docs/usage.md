@@ -85,6 +85,7 @@ Todas opcionais. Pedidas quando o plugin é ativado, alteráveis depois com `/pl
 - **CPF e CNPJ voltam só com os dígitos.** Se o arquivo escreve com pontuação, use `CPF#....fmt`. Quando o comando não acha nada ou falha, o `pii-exec` lembra disso.
 - **Todo `pii-exec` com token pede a sua confirmação,** inclusive no modo auto. Leia o comando: um `curl` ou outro comando de rede mandaria o dado real para fora, e uma página ou uma tarefa podem tentar induzir o Claude a isso.
 	- Enquanto o comando roda, o valor real aparece na lista de processos (`ps`).
+	- A pergunta reconhece o `pii-exec` escrito no comando, mesmo com aspas ou barra no meio. Um comando montado com variável do shell (`$X-exec`) não é reconhecido; aí vale só a permissão normal do Claude Code.
 - **O `pii-reveal` abre a cópia no seu editor,** fora do alcance do Claude.
 - **O `pii-allow` é para valor que pode ir:** o CNPJ da sua empresa, o seu próprio email no `git log`.
 	- A lista guarda tokens, não valores, então o arquivo de config não tem dado pessoal.

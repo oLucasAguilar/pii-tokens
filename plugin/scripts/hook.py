@@ -290,7 +290,9 @@ def pre(event: dict) -> None:
     tool, tool_input = event.get("tool_name", ""), event.get("tool_input", {})
     if tool == "Bash":
         text = tool_input.get("command", "")
-        if PII_EXEC.search(text) and ("#" in text or "--stdin" in text) and _asks_for_real_values(text):
+        # The shell drops quotes and backslashes, so p""ii-exec and pi\i-exec still run pii-exec.
+        unquoted = re.sub(r"[\"'\\\\]", "", text)
+        if PII_EXEC.search(unquoted) and ("#" in text or "--stdin" in unquoted) and _asks_for_real_values(unquoted):
             return
         target = "a commit message" if GIT_COMMIT.search(text) else ""
     else:

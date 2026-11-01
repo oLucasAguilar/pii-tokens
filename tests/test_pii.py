@@ -498,6 +498,26 @@ subprocess.run([str(SCRIPTS / "setup.sh")], env={**os.environ, "CLAUDE_PLUGIN_RO
 linked = subprocess.run([str(setup_data / "bin" / "pii-mask")], input="plain text", capture_output=True, text=True)
 check("setup.sh links the commands at a path that survives updates", linked.stdout.strip() == "plain text")
 
+# Windows, faked on Linux: Git Bash copies instead of linking, so setup.sh writes launchers.
+plugins = SANDBOX / "Usuário com espaço" / "plugins"
+win_root = plugins / "cache" / "pii-tokens" / "pii-tokens" / "9.9.9"
+shutil.copytree(SCRIPTS.parent, win_root, ignore=shutil.ignore_patterns("__pycache__"))
+win_data = plugins / "data" / "pii-tokens-pii-tokens"
+(win_data / "bin").mkdir(parents=True)  # the copy 0.6.3 left behind
+shutil.copy(SCRIPTS.parent / "requirements.txt", win_data / "requirements.txt")
+fake_bin = SANDBOX / "fake-cygpath"
+fake_bin.mkdir()
+(fake_bin / "cygpath").write_text('#!/bin/sh\necho "$2"\n')
+(fake_bin / "cygpath").chmod(0o755)
+subprocess.run([str(win_root / "scripts" / "setup.sh")], env={**os.environ, "OS": "Windows_NT", "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                                                            "CLAUDE_PLUGIN_ROOT": str(win_root), "CLAUDE_PLUGIN_DATA": str(win_data)})
+launched = subprocess.run(["sh", str(win_data / "bin" / "pii-mask")], input="plain text", capture_output=True, text=True)
+check("on Windows, setup.sh writes a Git Bash launcher that runs the command", launched.stdout.strip() == "plain text")
+cmd = (win_data / "bin" / "pii-reveal.cmd").read_text()
+check("the .cmd launcher points at this version by a relative path, without the user folder",
+      "%~dp0..\\..\\..\\cache\\pii-tokens\\pii-tokens\\9.9.9\\scripts\\cli.py" in cmd and "Usuário" not in cmd)
+check("the .cmd launcher falls back to the system Python", 'set "py=python"' in cmd)
+
 old_mac = SANDBOX / "old-mac-bin"
 old_mac.mkdir()
 real_readlink = shutil.which("readlink")

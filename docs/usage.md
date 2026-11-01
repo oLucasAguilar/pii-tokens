@@ -39,8 +39,14 @@ Os comandos `pii-*` já estão no PATH do Claude. Para rodar no seu terminal, ad
 export PATH="$HOME/.claude/plugins/data/pii-tokens-pii-tokens/bin:$PATH"
 ```
 
+No Windows (PowerShell), uma vez, e reabra o terminal:
+
+```
+[Environment]::SetEnvironmentVariable("PATH", "$HOME\.claude\plugins\data\pii-tokens-pii-tokens\bin;" + [Environment]::GetEnvironmentVariable("PATH", "User"), "User")
+```
+
 - `pii-unmask` e `pii-allow` só funcionam assim: rodam em terminal interativo, para o Claude não usar sozinho.
-- A pasta é um link que o plugin refaz a cada sessão, então sobrevive às atualizações.
+- O plugin refaz a pasta a cada sessão (no Windows, com lançadores no lugar do link), então ela sobrevive às atualizações.
 
 ## Configurações
 

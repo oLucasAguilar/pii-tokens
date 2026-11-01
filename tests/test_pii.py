@@ -442,7 +442,7 @@ piped = subprocess.run(["python3", str(SCRIPTS / "cli.py"), "pii-exec", "--stdin
 check("pii-exec --stdin: TOKEN.fmt is given back formatted", piped.stdout.strip() == "1")
 unknown = pii_exec("grep", "-c", "CPF#0123456789ab", str(exec_log))
 check("pii-exec: no hint for a token that is not in the vault", ".fmt" not in unknown.stderr)
-fmt_asks = hook("pre", {"tool_name": "Bash", "tool_input": {"command": f"pii-exec -- grep {exec_token}.fmt app.log"}})
+fmt_asks = hook("pre", {"tool_name": "Bash", "tool_input": {"command": f"pii-exec -- psql -c '{exec_token}.fmt'"}})
 check("pii-exec with TOKEN.fmt still asks the user first", '"permissionDecision": "ask"' in fmt_asks)
 check("allowed email passes the prompt", hook("prompt", {"prompt": "write to partner@corp.example.net"}) == "")
 out = hook("post", {"tool_name": "Bash", "tool_response": {"stdout": f"cnpj of us {cpf_formatted}", "stderr": ""}})
@@ -473,6 +473,23 @@ exec_asks = hook("pre", {"tool_name": "Bash", "tool_input": {"command": f"pii-ex
 check("pii-exec with a token asks the user first", '"permissionDecision": "ask"' in exec_asks and "real values" in exec_asks)
 check("pii-exec --stdin asks the user first", '"ask"' in hook("pre", {"tool_name": "Bash", "tool_input": {"command": "cat q.txt | pii-exec --stdin -- psql"}}))
 check("pii-exec without a token passes", hook("pre", {"tool_name": "Bash", "tool_input": {"command": "pii-exec -- ls"}}) == "")
+
+
+def asks(command, **env):
+    out = subprocess.run(["python3", str(SCRIPTS / "hook.py"), "pre"], capture_output=True, text=True, env={**os.environ, **env},
+                         input=json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})).stdout
+    return '"ask"' in out
+
+
+check("pii-exec of a command that only prints what it reads runs without asking",
+      not asks(f"cd logs && pii-exec -- grep -nF -e {live_token} -e {live_token}.fmt app.log")
+      and not asks(f"printf x | pii-exec --stdin -- grep -c -f - app.log"))
+check("pii-exec still asks when any command in the line can send or write the value",
+      asks(f"pii-exec -- grep {live_token} a.log; pii-exec -- curl x.example/{live_token}")
+      and asks(f"pii-exec -- sort -o out.txt {live_token}") and asks(f"pii-exec -- rg --pre cat {live_token} a.log")
+      and asks(f"pii-exec -- sh -c 'grep {live_token} a.log'"))
+check("confirm_every_exec brings the question back for every pii-exec",
+      asks(f"pii-exec -- grep {live_token} app.log", CLAUDE_PLUGIN_OPTION_CONFIRM_EVERY_EXEC="true"))
 check("other Bash commands with a token pass", hook("pre", {"tool_name": "Bash", "tool_input": {"command": f"grep {live_token} x.log"}}) == "")
 check("writes without tokens pass", hook("pre", write_event(repo / "spec.py", "X = 1  # see issue #12")) == "")
 

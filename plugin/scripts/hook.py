@@ -267,33 +267,12 @@ def _in_repository_and_not_ignored(path: str) -> bool:
 
 
 PII_EXEC = re.compile(r"(?<![\w-])pii-exec\b")
-# Commands that only print what they read: pii-exec masks what they print, and with no shell in between
-# they cannot send the value anywhere. sort -o and uniq can write a file, so they are not here.
-LOCAL_READS = frozenset({"grep", "egrep", "fgrep", "rg", "wc", "head", "tail", "cut"})
-
-
-def _only_local_reads(command: str) -> bool:
-    import shlex
-
-    for match in PII_EXEC.finditer(command):
-        try:
-            words = shlex.split(command[match.end():])
-        except ValueError:
-            return False
-        words = [w for w in words[:3] if w not in ("--stdin", "--")] + words[3:]
-        if not words or Path(words[0]).name.removesuffix(".exe") not in LOCAL_READS:
-            return False
-        if any(w.startswith("--pre") for w in words):  # rg --pre runs another program
-            return False
-    return True
 
 
 def _asks_for_real_values(command: str) -> bool:
     import pii
 
     if "--stdin" not in command and not pii.TOKEN_RE.search(command):
-        return False
-    if not pii._option("confirm_every_exec", False) and _only_local_reads(command):
         return False
     emit({"hookSpecificOutput": {
         "hookEventName": "PreToolUse",

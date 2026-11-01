@@ -56,12 +56,6 @@
       "description": "When a pasted image with personal data blocks the prompt, copy the message that asks Claude to read it (and so masks it) to the clipboard, ready to paste. Replaces what the clipboard held. On by default.",
       "default": true
     },
-    "confirm_every_exec": {
-      "type": "boolean",
-      "title": "Confirm every pii-exec",
-      "description": "Ask before every pii-exec with a token, even for commands that only print what they read (grep, rg, wc, head, tail, cut). Off by default: those run without asking, since what they print comes back masked.",
-      "default": false
-    },
     "terms": {
       "type": "string",
       "multiple": true,

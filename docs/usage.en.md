@@ -82,7 +82,7 @@ All optional. Asked when the plugin is enabled, changed later with `/plugin conf
 
 - **`pii-exec` masks the output again,** so the real value never comes back to Claude.
 - **CPF and CNPJ come back as digits only.** If the file writes them with punctuation, use `CPF#....fmt`. When the command finds nothing or fails, `pii-exec` reminds you.
-- **`pii-exec` with a token asks for your confirmation,** auto mode included, except with `grep`, `rg`, `wc`, `head`, `tail` and `cut`: they only print what they read, and the output comes back masked. The `confirm_every_exec` option makes it ask every time. Read the command: `curl` or any network command would send the real value out, and a web page or a ticket can try to trick Claude into that.
+- **Every `pii-exec` with a token asks for your confirmation,** auto mode included. Read the command: `curl` or any network command would send the real value out, and a web page or a ticket can try to trick Claude into that.
 	- While the command runs, the real value is visible in the process list (`ps`).
 - **`pii-reveal` opens the copy in your editor,** outside Claude's reach.
 - **`pii-allow` is for values that are fine to send:** your company's CNPJ, your own email in `git log`.

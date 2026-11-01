@@ -68,6 +68,7 @@ Those in [limits.en.md](limits.en.md) apply too. Besides them:
 
 - **A CPF as a number with decimals** (ending in `.0`) passes, outside a column named after a document.
 - **A server that redirects from https to http** with `Extra headers` set: the call fails, saying why, so the sign-in is not sent unencrypted.
+- **The fixed values a tool accepts** (a parameter's list of options) pass unmasked: the tool needs them to be called.
 - **A renamed column passes.** Names are found by column, so `SELECT name AS title` returns the name unmasked.
 - **A result in an unknown shape is withheld**, not passed on: Claude gets a notice instead.
 - **A block that is not text** (image, embedded resource) is withheld too.

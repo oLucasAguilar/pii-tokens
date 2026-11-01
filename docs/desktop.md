@@ -68,6 +68,7 @@ Valem também os de [limits.md](limits.md). Além deles:
 
 - **CPF como número com casas decimais** (com `.0` no fim) passa, fora de uma coluna com nome de documento.
 - **Servidor que redireciona de https para http** com `Extra headers` preenchido: a chamada falha, com o motivo, para o login não ir sem criptografia.
+- **Valores fixos que uma ferramenta aceita** (a lista de opções de um parâmetro) passam sem máscara: a ferramenta precisa deles para ser chamada.
 - **Coluna renomeada passa.** O nome é achado pela coluna, então `SELECT nome AS titulo` traz o nome sem máscara.
 - **Resultado em formato desconhecido é retido**, não repassado: o Claude recebe um aviso no lugar.
 - **Bloco que não é texto** (imagem, recurso embutido) também é retido.

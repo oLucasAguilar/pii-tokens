@@ -60,7 +60,7 @@ def client_factory(url: str, fixed_headers: dict):
 
     async def refuse_downgrade(response):
         # Following it, the request would arrive without the headers and fail for no visible reason.
-        if fixed_headers and response.is_redirect and _downgrade(response.request.url.join(response.headers["location"])):
+        if fixed_headers and response.has_redirect_location and _downgrade(response.request.url.join(response.headers["location"])):
             raise httpx2.RequestError(
                 f"The server redirected from https to http://{configured.host}, without encryption; "
                 "the extension did not send your sign-in headers. Check the server's https setup.",

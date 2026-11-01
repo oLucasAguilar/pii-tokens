@@ -100,9 +100,18 @@ class Masker:
         return pii.mask_text(text, self.vault)
 
     def schema(self, value):
-        """A tool's input schema: strings and keys masked by format, numbers and structure untouched."""
+        """A tool's input schema: texts masked by format. Parameter names and the values a call must use
+        (enum, const) stay as they are, or the tool could no longer be called."""
         if isinstance(value, dict):
-            return {self.written(k): self.schema(v) for k, v in value.items()}
+            masked = {}
+            for key, item in value.items():
+                if key in ("enum", "const", "required"):
+                    masked[key] = item
+                elif key == "properties" and isinstance(item, dict):
+                    masked[key] = {name: self.schema(prop) for name, prop in item.items()}
+                else:
+                    masked[key] = self.schema(item)
+            return masked
         if isinstance(value, list):
             return [self.schema(v) for v in value]
         return self.written(value) if isinstance(value, str) else value

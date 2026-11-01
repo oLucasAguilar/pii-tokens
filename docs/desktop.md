@@ -43,7 +43,7 @@ Não adicione o mesmo servidor também como conector direto: por ali o resultado
 
 ## O que é mascarado
 
-- **CPF, CNPJ, email e telefone:** em qualquer lugar do resultado, pelo formato.
+- **CPF, CNPJ, email e telefone:** em qualquer lugar do resultado, pelo formato, inclusive no nome de um campo. Também no texto de apresentação que o servidor manda ao conectar e na descrição das ferramentas.
 - **Nome:** pela coluna, nos formatos de tabela que a extensão conhece (hoje, o do Metabase), venha de qualquer servidor.
 - **Nome em JSON comum** (fora de uma tabela conhecida) passa.
 
@@ -52,6 +52,7 @@ Não adicione o mesmo servidor também como conector direto: por ali o resultado
 - No primeiro uso abre o navegador.
 - Depois disso, o login vale entre reinícios.
 - O token fica cifrado no disco, com a chave no cofre do sistema.
+- **Sair ou trocar de conta:** feche o Claude Desktop, apague a pasta `oauth` (`~/.local/share/pii-tokens/oauth`; no Windows, `%USERPROFILE%\.local\share\pii-tokens\oauth`) e abra de novo. O próximo uso abre a tela de login.
 
 ## Desmascarar na consulta
 
@@ -65,6 +66,8 @@ Ligado, o Claude filtra pelo valor real sem lê-lo, mas uma consulta torta traz 
 
 Valem também os de [limits.md](limits.md). Além deles:
 
+- **CPF como número com casas decimais** (`52998224725.0`) passa, fora de uma coluna com nome de documento.
+- **Servidor que redireciona de https para http** com `Extra headers` preenchido: a chamada falha, com o motivo, para o login não ir sem criptografia.
 - **Coluna renomeada passa.** O nome é achado pela coluna, então `SELECT nome AS titulo` traz o nome sem máscara.
 - **Resultado em formato desconhecido é retido**, não repassado: o Claude recebe um aviso no lugar.
 - **Bloco que não é texto** (imagem, recurso embutido) também é retido.

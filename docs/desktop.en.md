@@ -43,7 +43,7 @@ Do not also add the same server as a direct connector: that way results reach Cl
 
 ## What is masked
 
-- **CPF, CNPJ, email and phone:** anywhere in the result, by format.
+- **CPF, CNPJ, email and phone:** anywhere in the result, by format, field names included. Also in the text the server sends on connect and in the tool descriptions.
 - **Names:** by column, in the table formats the extension knows (today, Metabase's), from any server.
 - **A name in plain JSON** (outside a known table) passes.
 
@@ -52,6 +52,7 @@ Do not also add the same server as a direct connector: that way results reach Cl
 - On first use your browser opens.
 - After that, the sign-in lasts across restarts.
 - The token is encrypted on disk, with the key in the system keyring.
+- **Sign out or switch accounts:** quit Claude Desktop, delete the `oauth` folder (`~/.local/share/pii-tokens/oauth`; on Windows, `%USERPROFILE%\.local\share\pii-tokens\oauth`) and open it again. The next use opens the sign-in page.
 
 ## Unmasking in queries
 
@@ -65,6 +66,8 @@ Turned on, Claude filters by the real value without reading it, but a crafted qu
 
 Those in [limits.en.md](limits.en.md) apply too. Besides them:
 
+- **A CPF as a number with decimals** (`52998224725.0`) passes, outside a column named after a document.
+- **A server that redirects from https to http** with `Extra headers` set: the call fails, saying why, so the sign-in is not sent unencrypted.
 - **A renamed column passes.** Names are found by column, so `SELECT name AS title` returns the name unmasked.
 - **A result in an unknown shape is withheld**, not passed on: Claude gets a notice instead.
 - **A block that is not text** (image, embedded resource) is withheld too.

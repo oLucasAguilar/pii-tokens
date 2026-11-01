@@ -66,7 +66,7 @@ class Masker:
                 masked = table(value, self._cell, self.value)
                 if masked is not None:
                     return masked
-            return {k: self.value(v) for k, v in value.items()}
+            return {self._loose(k) if isinstance(k, str) else k: self.value(v) for k, v in value.items()}
         if isinstance(value, list):
             return [self.value(v) for v in value]
         if isinstance(value, str):

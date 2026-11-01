@@ -36,11 +36,25 @@ DEFAULT_TIMEOUT = httpx2.Timeout(30.0, read=300.0)
 DEFAULT_CALLBACK_PORT = 47213
 
 
+def _port(url: httpx2.URL):
+    return url.port or {"https": 443, "http": 80}.get(url.scheme)
+
+
 def client_factory(url: str, fixed_headers: dict):
-    host = httpx2.URL(url).host
+    configured = httpx2.URL(url)
 
     async def add_headers(request):
-        if request.url.host == host:
+        target = request.url
+        same_host = target.host == configured.host
+        if fixed_headers and same_host and configured.scheme == "https" and target.scheme == "http":
+            raise httpx2.RequestError(
+                f"The server redirected from https to {target.scheme}://{target.host}, without encryption; "
+                "the extension did not send your sign-in headers. Check the server's https setup.",
+                request=request,
+            )
+        same_origin = same_host and (target.scheme, _port(target)) == (configured.scheme, _port(configured))
+        upgrade = same_host and configured.scheme == "http" and target.scheme == "https"
+        if same_origin or upgrade:
             request.headers.update(fixed_headers)
         else:
             # A redirect copies the first request's headers.

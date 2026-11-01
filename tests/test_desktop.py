@@ -130,6 +130,7 @@ if fastmcp:
     import asyncio
 
     from fastmcp import Client, FastMCP
+    from fastmcp.server import create_proxy
     from fastmcp.tools import ToolResult
     from mcp.types import ImageContent, TextContent
 
@@ -175,7 +176,11 @@ if fastmcp:
         await ctx.log(f"looking up {cpf}")
         await ctx.report_progress(1, 2, f"row of {email}")
         try:
-            await ctx.sample(f"summarize the customer {cpf}")
+            # ctx.sample does not exist in FastMCP 4; the session call is what a server sends.
+            from mcp.types import SamplingMessage
+            await ctx.session.create_message(
+                messages=[SamplingMessage(role="user", content=TextContent(type="text", text=f"summarize {cpf} {email}"))],
+                max_tokens=10)
         except Exception:
             pass
         return "done"
@@ -213,7 +218,7 @@ if fastmcp:
     check("proxy: a configured kind is unmasked before the call", seen["sql"].endswith(f"'{cpf}'"))
 
     # What the upstream sends besides the result: logs, progress and sampling requests reach Claude Desktop too.
-    async def side_channels():
+    async def side_channels(proxy):
         heard = []
 
         async def log_handler(message):
@@ -226,14 +231,48 @@ if fastmcp:
             heard.append(json.dumps([m.model_dump(mode="json") for m in messages]))
             return "summary"
 
-        client = Client(server.build(server.Settings(url="http://upstream.invalid/mcp"), upstream=upstream),
+        # Sampling only crosses the proxy in the legacy protocol era, the one the Metabase speaks.
+        client = Client(proxy, mode="legacy",
                         log_handler=log_handler, progress_handler=progress_handler, sampling_handler=sampling_handler)
         async with client:
             result = await client.call_tool_mcp("chatty", {})
         return dump(result), " ".join(heard)
 
-    result, heard = asyncio.run(side_channels())
+    _, heard_plain = asyncio.run(side_channels(create_proxy(upstream, mode="legacy")))
+    check("control: a plain proxy passes the side channels' personal data on", cpf in heard_plain)
+    real_client = server.ProxyClient
+    server.ProxyClient = lambda *a, **k: real_client(*a, **{**k, "mode": "legacy"})
+    try:
+        result, heard = asyncio.run(side_channels(server.build(server.Settings(url="http://upstream.invalid/mcp"), upstream=upstream)))
+    finally:
+        server.ProxyClient = real_client
     check("proxy: logs, progress and sampling requests carry no personal data", '"done"' in result and cpf not in heard and email not in heard)
+
+    # What the upstream says about itself: the instructions sent on connect and the tool texts.
+    from typing import Annotated
+
+    from pydantic import Field
+
+    talkative = FastMCP("fake", instructions=f"Ask {email} about customer {cpf}")
+
+    @talkative.tool(annotations=read_only, description=f"Looks up the customer {cpf}")
+    def lookup(term: Annotated[str, Field(description=f"e.g. {email}")]) -> str:
+        return "x"
+
+    async def self_description(proxy):
+        async with Client(proxy) as client:
+            tools = await client.list_tools()
+            return str(client.instructions or ""), json.dumps([t.model_dump(mode="json") for t in tools], ensure_ascii=False)
+
+    plain_instructions, plain_tools = asyncio.run(self_description(create_proxy(talkative)))
+    check("control: a plain proxy passes the upstream's instructions and tool texts on", cpf in plain_instructions and cpf in plain_tools)
+    instructions, tools = asyncio.run(self_description(server.build(server.Settings(url="http://upstream.invalid/mcp"), upstream=talkative)))
+    check("proxy: the upstream's instructions are masked", cpf not in instructions and email not in instructions and "CPF#" in instructions)
+    check("proxy: tool descriptions and parameters are masked, the tool name kept",
+          cpf not in tools and email not in tools and '"lookup"' in tools)
+
+    keyed = json.dumps(masker.value({cpf: "late", "contacts": {email: 1}}))
+    check("masking: a CPF or email used as a key is masked", cpf not in keyed and email not in keyed and "CPF#" in keyed)
 
     listed, results = asyncio.run(session(server.Settings(url="http://upstream.invalid/mcp", preset="metabase", allow_tools=frozenset({"dashboard_write"}))))
     check("proxy: a write tool can be allowed by name", "dashboard_write" in listed and not results["write"].is_error)
@@ -275,6 +314,31 @@ if fastmcp:
         return response.json()["seen"]
 
     check("auth: fixed headers do not follow a redirect to another host", asyncio.run(headers_after_a_redirect()) is None)
+
+    async def redirected(configured, location, headers):
+        def upstream(request):
+            if str(request.url) == configured:
+                return httpx2.Response(302, headers={"Location": location})
+            return httpx2.Response(200, json={"seen": request.headers.get("CF-Access-Client-Id")})
+
+        client = auth.client_factory(configured, headers)(follow_redirects=True)
+        client._transport = httpx2.MockTransport(upstream)
+        try:
+            return (await client.get(configured)).json()["seen"]
+        except httpx2.RequestError as error:
+            return str(error)
+        finally:
+            await client.aclose()
+
+    fixed = {"CF-Access-Client-Id": "id-123"}
+    check("auth: a redirect from https to http is refused, saying why, when there are headers to protect",
+          "without encryption" in asyncio.run(redirected("https://upstream.invalid/mcp", "http://upstream.invalid/x", fixed)))
+    check("auth: without fixed headers, that redirect is followed as before",
+          asyncio.run(redirected("https://upstream.invalid/mcp", "http://upstream.invalid/x", {})) is None)
+    check("auth: fixed headers do not go to another port of the same host",
+          asyncio.run(redirected("https://upstream.invalid/mcp", "https://upstream.invalid:8443/x", fixed)) is None)
+    check("auth: fixed headers follow a redirect from http up to https",
+          asyncio.run(redirected("http://upstream.invalid/mcp", "https://upstream.invalid/mcp", fixed)) == "id-123")
 
     async def called_like_the_transport():
         client = auth.client_factory("http://upstream.invalid/mcp", {})(headers={}, auth=None, follow_redirects=True)

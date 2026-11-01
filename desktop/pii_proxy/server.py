@@ -71,6 +71,25 @@ class Settings:
         return bool(tool.annotations and tool.annotations.read_only_hint)
 
 
+class InstructionsMiddleware(Middleware):
+    """Masks the instructions the upstream sends on connect. It must run outermost: the proxy adds those
+    instructions in a middleware of its own, after the inner ones have already seen the result."""
+
+    def __init__(self, masker: masking.Masker):
+        self.masker = masker
+
+    def _masked(self, result):
+        if getattr(result, "instructions", None):
+            return result.model_copy(update={"instructions": self.masker.text(result.instructions)})
+        return result
+
+    async def on_initialize(self, context, call_next):
+        return self._masked(await call_next(context))
+
+    async def on_discover(self, context, call_next):
+        return self._masked(await call_next(context))
+
+
 class MaskingMiddleware(Middleware):
     def __init__(self, settings: Settings, masker: masking.Masker):
         self.settings = settings
@@ -79,7 +98,17 @@ class MaskingMiddleware(Middleware):
     async def on_list_tools(self, context: MiddlewareContext, call_next):
         tools = await call_next(context)
         # Masking turns typed values into token strings, so an output schema would no longer hold.
-        return [t.model_copy(update={"output_schema": None}) for t in tools if self.settings.allows(t)]
+        # The tool name stays as is (Claude calls it by that name); its texts are masked like any result.
+        return [
+            t.model_copy(update={
+                "output_schema": None,
+                "title": t.title and self.masker.text(t.title),
+                "description": t.description and self.masker.text(t.description),
+                "parameters": self.masker.value(t.parameters),
+            })
+            for t in tools
+            if self.settings.allows(t)
+        ]
 
     async def on_call_tool(self, context: MiddlewareContext, call_next):
         name = context.message.name
@@ -160,6 +189,7 @@ def build(settings: Settings, upstream=None):
     # Resources and prompts would be another way out for data; nothing here masks them yet.
     proxy.disable(components={"resource", "template", "prompt"})
     proxy.add_middleware(MaskingMiddleware(settings, masker))
+    proxy.middleware.insert(0, InstructionsMiddleware(masker))
     return proxy
 
 

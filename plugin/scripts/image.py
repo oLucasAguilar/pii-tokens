@@ -58,8 +58,14 @@ def _tokens(text: str, vault) -> str | None:
     return " ".join(tokens) if tokens else None
 
 
+# The start of a CPF whose check digits OCR lost: reread it with the area to its right.
+CPF_START = re.compile(r"\d{3}\.\d{3}\.\d{3}-?")
+
+
 def _label(text: str, vault) -> str | None:
     found = _tokens(text, vault)
+    if not found and CPF_START.fullmatch(text):
+        return RETRY
     if found or not _looks_like_document(text):
         return found
     fixed = text.translate(OCR_DIGIT_FIXES)
@@ -75,7 +81,9 @@ def _reread(enlarged, group: list[dict], vault) -> str | None:
     top = min(int(w["top"]) for w in group) - 4 * PAD
     right = max(int(w["left"]) + int(w["width"]) for w in group) + 4 * PAD
     bottom = max(int(w["top"]) + int(w["height"]) for w in group) + 4 * PAD
-    crop = enlarged.crop((max(left, 0), max(top, 0), right, bottom))
+    if CPF_START.fullmatch(" ".join(w["text"] for w in group)):
+        right += 4 * (bottom - top)  # room for the "-00" OCR dropped
+    crop = enlarged.crop((max(left, 0), max(top, 0), min(right, enlarged.width), bottom))
     crop = crop.resize((crop.width * 2, crop.height * 2), Image.LANCZOS)
     png = io.BytesIO()
     crop.save(png, "PNG")

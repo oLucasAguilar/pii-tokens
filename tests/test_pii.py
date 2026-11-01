@@ -414,6 +414,25 @@ check("pii-allow rejects a value that is not a token",
 for command in ("pii-sheet", "pii-reveal"):
     bare = subprocess.run(["python3", str(SCRIPTS / "cli.py"), command], capture_output=True, text=True)
     check(f"{command} without a file prints its usage", bare.returncode != 0 and f"usage: {command} FILE" in bare.stderr and "Traceback" not in bare.stderr)
+
+# pii-exec gives a document token back as digits; a file that writes it with dots and dash needs .fmt.
+exec_token = pii.Vault().token_for("CPF", cpf)
+exec_log = SANDBOX / "exec.log"
+
+
+def pii_exec(*command):
+    return subprocess.run(["python3", str(SCRIPTS / "cli.py"), "pii-exec", "--", *command], capture_output=True, text=True)
+
+
+exec_log.write_text(f"customer {cpf_formatted}\n")
+by_digits = pii_exec("grep", "-c", exec_token, str(exec_log))
+check("pii-exec: a formatted CPF searched by digits finds nothing, and says to use .fmt",
+      by_digits.stdout.strip() == "0" and f"{exec_token}.fmt" in by_digits.stderr)
+formatted = pii_exec("grep", "-c", f"{exec_token}.fmt", str(exec_log))
+check("pii-exec: TOKEN.fmt finds the formatted CPF, with no hint", formatted.stdout.strip() == "1" and ".fmt" not in formatted.stderr)
+exec_log.write_text(f"customer {cpf}\n")
+found = pii_exec("grep", "-c", exec_token, str(exec_log))
+check("pii-exec: a CPF written as digits is found, with no hint", found.stdout.strip() == "1" and found.stderr == "")
 check("allowed email passes the prompt", hook("prompt", {"prompt": "write to partner@corp.example.net"}) == "")
 out = hook("post", {"tool_name": "Bash", "tool_response": {"stdout": f"cnpj of us {cpf_formatted}", "stderr": ""}})
 check("allowed value is not masked in tool output", out == "" or cpf_formatted in out)

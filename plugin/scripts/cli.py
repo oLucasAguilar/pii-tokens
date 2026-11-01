@@ -98,12 +98,48 @@ def cmd_exec(args):
     if not args:
         sys.exit("usage: pii-exec -- CMD ARGS...")
     vault = pii.Vault()
-    command = [pii.unmask_text(a, vault) for a in args]
-    stdin = pii.unmask_text(sys.stdin.read(), vault) if read_stdin else None
+    raw_stdin = sys.stdin.read() if read_stdin else None
+    command = [pii.unmask_text(_unmask_formatted(a, vault), vault) for a in args]
+    stdin = pii.unmask_text(_unmask_formatted(raw_stdin, vault), vault) if read_stdin else None
     result = subprocess.run(command, input=stdin, capture_output=True, text=True)
     sys.stdout.write(pii.mask_text(pii.mask_table_text(result.stdout, vault), vault))
     sys.stderr.write(pii.mask_text(result.stderr, vault))
+    if result.returncode != 0 or not result.stdout.strip():
+        # A document token becomes its digits; a file that writes it with dots and dash would not match,
+        # and an empty answer would read as "not there".
+        for token in _digits_only_tokens(args + ([raw_stdin] if raw_stdin else [])):
+            sys.stderr.write(f"[pii-tokens] {token} was replaced by its digits only. "
+                             f"If the file writes it with dots and dash, use {token}.fmt\n")
     sys.exit(result.returncode)
+
+
+FORMATTED_TOKEN_RE = re.compile(rf"(?:{pii.TOKEN_RE.pattern})\.fmt\b")
+
+
+def _formatted(kind: str, value: str) -> str:
+    if kind == "CPF" and len(value) == 11:
+        return f"{value[:3]}.{value[3:6]}.{value[6:9]}-{value[9:]}"
+    if kind == "CNPJ" and len(value) == 14:
+        return f"{value[:2]}.{value[2:5]}.{value[5:8]}/{value[8:12]}-{value[12:]}"
+    return value
+
+
+def _unmask_formatted(text: str, vault) -> str:
+    def replace(m):
+        token = m.group(0)[: -len(".fmt")]
+        value = vault.value_for(token)
+        return _formatted(m.group(1), value) if value else m.group(0)
+
+    return FORMATTED_TOKEN_RE.sub(replace, text)
+
+
+def _digits_only_tokens(texts) -> list[str]:
+    found = []
+    for text in texts:
+        for m in pii.TOKEN_RE.finditer(text):
+            if m.group(1) in ("CPF", "CNPJ") and not text.startswith(".fmt", m.end()) and m.group(0) not in found:
+                found.append(m.group(0))
+    return found
 
 
 def _scrub_value(value, vault, counter):

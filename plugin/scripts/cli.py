@@ -99,8 +99,8 @@ def cmd_exec(args):
         sys.exit("usage: pii-exec -- CMD ARGS...")
     vault = pii.Vault()
     raw_stdin = sys.stdin.read() if read_stdin else None
-    command = [pii.unmask_text(_unmask_formatted(a, vault), vault) for a in args]
-    stdin = pii.unmask_text(_unmask_formatted(raw_stdin, vault), vault) if read_stdin else None
+    command = [pii.unmask_text(a, vault) for a in args]
+    stdin = pii.unmask_text(raw_stdin, vault) if read_stdin else None
     result = subprocess.run(command, input=stdin, capture_output=True, text=True)
     sys.stdout.write(pii.mask_text(pii.mask_table_text(result.stdout, vault), vault))
     sys.stderr.write(pii.mask_text(result.stderr, vault))
@@ -113,32 +113,12 @@ def cmd_exec(args):
     sys.exit(result.returncode)
 
 
-FORMATTED_TOKEN_RE = re.compile(rf"(?:{pii.TOKEN_RE.pattern})\.fmt\b")
-
-
-def _formatted(kind: str, value: str) -> str:
-    if kind == "CPF" and len(value) == 11:
-        return f"{value[:3]}.{value[3:6]}.{value[6:9]}-{value[9:]}"
-    if kind == "CNPJ" and len(value) == 14:
-        return f"{value[:2]}.{value[2:5]}.{value[5:8]}/{value[8:12]}-{value[12:]}"
-    return value
-
-
-def _unmask_formatted(text: str, vault) -> str:
-    def replace(m):
-        token = m.group(0)[: -len(".fmt")]
-        value = vault.value_for(token)
-        return _formatted(m.group(1), value) if value else m.group(0)
-
-    return FORMATTED_TOKEN_RE.sub(replace, text)
-
-
 def _digits_only_tokens(texts, vault) -> list[str]:
     """CPF and CNPJ tokens given back as digits: in the vault, and not asked for with .fmt."""
     found = []
     for text in texts:
         for m in pii.TOKEN_RE.finditer(text):
-            if (m.group(1) in ("CPF", "CNPJ") and not FORMATTED_TOKEN_RE.match(text, m.start())
+            if (m.group(1) in ("CPF", "CNPJ") and not pii.FORMATTED_TOKEN_RE.match(text, m.start())
                     and m.group(0) not in found and vault.value_for(m.group(0))):
                 found.append(m.group(0))
     return found

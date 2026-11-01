@@ -435,6 +435,8 @@ found = pii_exec("grep", "-c", exec_token, str(exec_log))
 check("pii-exec: a CPF written as digits is found, with no hint", found.stdout.strip() == "1" and found.stderr == "")
 cnpj_token = pii.Vault().token_for("CNPJ", cnpj)
 exec_log.write_text(f"supplier {cnpj_formatted}\n")
+check("pii-reveal gives TOKEN.fmt back with punctuation, no .fmt left",
+      pii.unmask_text(f"cpf {exec_token}.fmt.", pii.Vault()) == f"cpf {cpf_formatted}.")
 check("pii-exec: CNPJ.fmt finds the formatted CNPJ", pii_exec("grep", "-c", f"{cnpj_token}.fmt", str(exec_log)).stdout.strip() == "1")
 exec_log.write_text(f"customer {cpf_formatted}\n")
 piped = subprocess.run(["python3", str(SCRIPTS / "cli.py"), "pii-exec", "--stdin", "--", "grep", "-c", "-f", "-", str(exec_log)],

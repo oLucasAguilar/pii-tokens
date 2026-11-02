@@ -50,7 +50,7 @@ The real value is used only after you confirm.
 + CPF CPF#3f1a9c0d22e4, contact EMAIL#91bd0e4a7c13. Spoke with Maria.
 ```
 
-A bare name in free text gets through: swap it for a nickname, or add it to the term list.
+A bare name in free text gets through: swap it for a nickname, add it to the term list, or turn on the names option.
 
 **Claude's tools**, like Jira, Notion, a CRM or an internal API
 
@@ -95,7 +95,13 @@ In Desktop chat, hooks do not run. For an MCP server there, use the Desktop exte
 | Brazilian phone numbers | `PHONE#` |
 | Name, contact and document columns (table, CSV, JSON) | `NAME#`, `CONTACT#`, `DOC#` |
 | Terms you list, such as a client's name | `TERM#` |
-| IP addresses, if you turn the option on | `IP#` |
+
+With the option on (off by default, in `/plugin configure`):
+
+| Option | What it replaces | Token |
+|---|---|---|
+| Mask IP addresses | IPv4 address | `IP#` |
+| Mask names in free text | a common first name + surname, like "Maria Souza" | `NAME#` |
 
 ## Limits
 
@@ -104,7 +110,7 @@ Whatever the detector does not recognize goes through as is: review before sendi
 
 These get through unmasked:
 
-- names in free text outside the term list;
+- names in free text, unless in the term list or caught by the names option;
 - failing commands and `!` commands;
 - keys, passwords and API tokens (the plugin handles personal data).
 

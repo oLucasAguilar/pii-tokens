@@ -53,7 +53,7 @@ O valor real só é usado com a sua confirmação.
 + CPF CPF#3f1a9c0d22e4, contato EMAIL#91bd0e4a7c13. Falou com a Maria.
 ```
 
-Nome solto no texto passa: troque por um apelido, ou ponha o nome na lista de termos.
+Nome solto no texto passa: troque por um apelido, ponha o nome na lista de termos, ou ligue a opção de nomes.
 
 **Ferramentas do Claude**, como Jira, Notion, um CRM ou uma API interna
 
@@ -103,7 +103,13 @@ No chat do Desktop, hook não roda. Para um servidor MCP ali, use a extensão do
 | Telefone brasileiro | `PHONE#` |
 | Colunas de nome, contato e documento (tabela, CSV, JSON) | `NAME#`, `CONTACT#`, `DOC#` |
 | Termos que você listar, como o nome de um cliente | `TERM#` |
-| IP, se você ligar a opção | `IP#` |
+
+Com a opção ligada (desligadas por padrão, em `/plugin configure`):
+
+| Opção | O que troca | Token |
+|---|---|---|
+| Mascarar IP | endereço IPv4 | `IP#` |
+| Mascarar nomes em texto livre | nome comum + sobrenome, como "Maria Souza" | `NAME#` |
 
 ## Limites
 
@@ -112,7 +118,7 @@ O que o detector não reconhece passa como está: revise antes de enviar dado se
 
 Passam sem máscara:
 
-- nome em texto livre, fora da lista de termos;
+- nome em texto livre, salvo pela lista de termos ou pela opção de nomes;
 - comando que falha e comando com `!`;
 - chave, senha e token de API (o plugin cuida de dado pessoal).
 

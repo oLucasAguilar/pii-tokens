@@ -342,6 +342,19 @@ check("IP: an IP with CPF check digits becomes an IP token", pii.mask_text(f"hos
 check("IP: the token gives the address back", pii.unmask_text(pii.mask_text("10.9.8.7", vault), vault) == "10.9.8.7")
 pii.MASK_IP = False
 
+# Names in free text: off by default, masked when the option is on.
+check("names: kept by default", pii.mask_text("falei com a Maria Souza ontem", vault) == "falei com a Maria Souza ontem")
+pii.MASK_NAMES = True
+masked = pii.mask_text("falei com a Maria Souza ontem e com João da Silva Santos.", vault)
+check("names: masked in running text", re.fullmatch(r"falei com a NAME#[0-9a-f]{12} ontem e com NAME#[0-9a-f]{12}\.", masked) is not None)
+check("names: the token gives the name back", pii.unmask_text(masked, vault) == "falei com a Maria Souza ontem e com João da Silva Santos.")
+for whole in ("Ana Maria-Souza", "Maria Souza e Silva", "João Pedro da Silva Santos Lima", "Maria Souza"):
+    check(f"names: all of {whole} is masked", re.fullmatch(r"x NAME#[0-9a-f]{12} y", pii.mask_text(f"x {whole} y", vault)) is not None)
+check("names: a division sign is not part of a name", pii.mask_text("Maria Souza÷2", vault).endswith("÷2"))
+for kept in ("maria souza", "Maria", "Banana Souza", "Mariana"):
+    check(f"names: {kept} is kept", pii.mask_text(f"x {kept} y", vault) == f"x {kept} y")
+pii.MASK_NAMES = False
+
 # The same email or name in other cases shares one token; before, the 4th spelling raised and the output was suppressed.
 spellings = {pii.mask_text(e, vault) for e in ("caio@mail.test", "Caio@mail.test", "CAIO@mail.test", "caio@MAIL.test", "Caio@Mail.Test")}
 check("email: five spellings share one token", len(spellings) == 1)

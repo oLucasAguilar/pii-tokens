@@ -71,10 +71,7 @@ Você escolhe que campo fica legível.
 O hook lê o texto da imagem antes de o Claude ver.
 
 - CPF, CNPJ, email e telefone recebem o token desenhado por cima.
-- Imagem colada na mensagem, com dado pessoal:
-	- a mensagem é barrada;
-	- o pedido para ler o arquivo vai para a área de transferência;
-	- apague, cole e envie.
+- Print colado na mensagem, com dado pessoal: a mensagem é barrada, e o pedido de leitura já vai para o Ctrl+V. Cole e envie: o Claude lê o print com os dados trocados.
 - Sem o `tesseract`, a imagem passa, com aviso.
 
 **Precisa do valor real**

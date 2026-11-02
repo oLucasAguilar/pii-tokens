@@ -64,9 +64,7 @@ You choose which fields stay readable.
 **Images**
 
 - The hook reads the image text before Claude sees it, and draws tokens over the values.
-- A pasted image with personal data blocks the message:
-	- a `Read <file>` request lands in your clipboard;
-	- paste it and send.
+- A pasted screenshot with personal data blocks the message, and a request to read it lands in your clipboard. Paste and send: Claude reads the screenshot with the data swapped.
 
 **When you need the real value**
 

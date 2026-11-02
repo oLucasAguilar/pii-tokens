@@ -226,6 +226,11 @@ check("dev tool names: package and pod names are kept", pii.mask_json(package, v
 check("dev tool names: a person in a tool-shaped document is still masked", all("Maria Silva" not in pii.mask_json(doc, vault) for doc in forged))
 check("dev tool names: a plain person record is still masked", "Maria" not in pii.mask_json('{"id": 1, "name": "Maria"}', vault))
 check("dev tool names: tool names next to a masked person are kept", "clientes" in pii.mask_json(forged[3], vault) and "relatorio" in pii.mask_json(forged[4], vault))
+# gh --json names a branch headRefName: a git ref, not a person; the author next to it is still masked.
+pr = json.dumps({"headRefName": "feat/15-x", "baseRefName": "main", "author": {"login": "someone", "name": "Maria Silva"}})
+check("gh ref names are kept", all(f'"{ref}"' in pii.mask_json(pr, vault) for ref in ("feat/15-x", "main")))
+check("gh author name next to a ref is still masked", "Maria Silva" not in pii.mask_json(pr, vault))
+check("a key ending in name is still a name column", pii.column_kind("authorName") == "NAME")
 pii.DEV_TOOL_NAMES = False
 
 tracker = json.dumps({"data": {"boards": [{"id": "1", "name": "Dev tasks", "items_page": {"items": [

@@ -104,6 +104,7 @@ NOT_PERSONAL_COLUMN = re.compile(
     r"file|arquivo|field|model|resource|class|service|group|notary|banco|bank|bordero"
     r"|(^|_)type$|numero_documento|num_documento|document_number|cidade|(^|_)uf$|pais|site$"
     r"|(^|_)(column|table|schema|index|constraint|job|queue|event|nsp)_?name$"
+    r"|ref_?name$"  # git refs, such as headRefName and baseRefName in gh --json
 )
 NAME_SUFFIX_COLUMN = re.compile(r"(name|nome|razao_social)$")
 CONTACT_COLUMN = re.compile(

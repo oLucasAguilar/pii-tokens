@@ -72,6 +72,7 @@ DEV_TOOL_NAMES = _option("dev_tool_names", False)
 COPY_READ_REQUEST = _option("copy_read_request", True)
 TERMS = _option("terms", ())
 MASK_IP = _option("mask_ip", False)
+MASK_NAMES = _option("mask_names", False)
 
 TOKEN_RE = re.compile(
     r"\b(CPF|CNPJ|EMAIL|PHONE|NAME|CONTACT|DOC|TERM|IP|TEL|NOME|CONTATO)#"
@@ -408,6 +409,8 @@ def mask_text(text: str, vault: Vault) -> str:
     text = EMAIL_RE.sub(email, text)
     if MASK_IP:
         text = _outside_tokens(text, IPV4_RE, lambda m: vault.mask("IP", m.group(0)) if _personal_ip(m.group(0)) else m.group(0))
+    if MASK_NAMES:
+        text = _outside_tokens(text, NAME_RE, lambda m: vault.mask("NAME", m.group(0)))
     if TERM_RE:
         text = _outside_tokens(text, TERM_RE, lambda m: vault.mask("TERM", m.group(0)))
     return text
@@ -442,6 +445,16 @@ def compile_terms(terms) -> re.Pattern | None:
 
 TERM_RE = compile_terms(TERMS)
 IPV4_RE = re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w-]|\.\d)")
+# shortcut: common first names plus capitalized surnames, no model; a name outside the list passes, use terms for it.
+FIRST_NAMES = (
+    "Ana Antonio Antônio Adriana Alexandre Aline André Andre Beatriz Bruna Bruno Camila Carla Carlos Carolina Caio Cláudia Claudia "
+    "Daniel Daniela Eduardo Fábio Fabio Felipe Fernanda Fernando Francisco Gabriel Gabriela Guilherme Gustavo Helena Henrique "
+    "Isabela Isabel Jéssica Jessica João Joao Joana Joaquim Jorge José Jose Júlia Julia Juliana Leandro Leonardo Letícia Leticia "
+    "Lucas Luciana Luís Luis Luiz Luiza Luisa Marcelo Marcos Marcus Maria Mariana Marina Mateus Matheus Miguel Natália Natalia "
+    "Paula Paulo Pedro Rafael Rafaela Renata Ricardo Roberto Rodrigo Sandra Sérgio Sergio Simone Tatiana Thiago Tiago Vanessa "
+    "Vinícius Vinicius Vitor Victor Vitória Vitoria"
+).split()
+NAME_RE = re.compile(rf"(?<!\w)(?:{'|'.join(FIRST_NAMES)})(?:(?: d[aoe]s?)? [A-ZÀ-Ý][a-zà-ÿ]{{2,}}){{1,3}}(?!\w)")
 KEPT_IPS = re.compile(r"127\.|0\.0\.0\.0$|255\.255\.")
 
 

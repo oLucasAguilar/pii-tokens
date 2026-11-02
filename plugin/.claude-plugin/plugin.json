@@ -69,6 +69,12 @@
       "title": "Mask IP addresses",
       "description": "Replace IPv4 addresses with IP# tokens. 127.x, 0.0.0.0 and 255.255.x are kept. Off by default: server IPs in dev logs are common.",
       "default": false
+    },
+    "mask_names": {
+      "type": "boolean",
+      "title": "Mask names in free text",
+      "description": "Replace a common first name followed by a capitalized surname (\"Maria Souza\") with NAME# tokens, with no AI model. Names outside the built-in list pass; add them to terms. Off by default: it can mask place or brand names that look like a person.",
+      "default": false
     }
   },
   "license": "MIT"

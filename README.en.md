@@ -11,11 +11,12 @@ A Claude Code plugin. Before Claude reads them, it swaps for tokens:
 
 It reduces accidental leaks, it does not eliminate them. Before using it with real data, read the [limits](#limits).
 
-| Where you use Claude | Status |
-|---|---|
-| Claude Code (terminal or IDE) | ✅ Available: follow [Install](#install) |
-| Claude Desktop chat | 🚧 In development, for what connectors (MCP) return. What you paste or attach is not masked: swap names, CPFs and emails for nicknames |
-| claude.ai | Not supported: swap names, CPFs and emails for nicknames before pasting or attaching |
+| Where | Status | Left out |
+|---|---|---|
+| Claude Code (terminal, IDE) | ✅ Full | the [limits](#limits) |
+| Claude Desktop, Code mode | ✅ Full (tested on Windows) | the [limits](#limits) |
+| Claude Desktop, chat mode | 🟡 What an MCP returns, through the [extension](docs/desktop.en.md) (tested on Windows) | what you paste or attach |
+| claude.ai | ❌ Not supported | everything |
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo.gif"><img alt="Claude reads a CSV with names, CPFs and emails and gets tokens; a CPF pasted into the prompt is blocked (screen in Portuguese)" src="docs/demo-light.gif"></picture>
 
@@ -78,6 +79,10 @@ pii-reveal report.md                        # opens the real version in your edi
 ```
 
 Commands and settings: [docs/usage.en.md](docs/usage.en.md).
+
+**Claude Desktop**
+
+In Desktop chat, hooks do not run. For an MCP server there, use the Desktop extension, which masks only what the server returns: [docs/desktop.en.md](docs/desktop.en.md).
 
 ## What gets masked
 

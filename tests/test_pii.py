@@ -626,6 +626,16 @@ if image_module.available():
     from_disk = hook("post", {"tool_name": "Read", "tool_input": {"file_path": str(on_disk)}, "tool_response": read_image(copy_reads_worse)})
     check("Read of an image file: the file on disk is OCR'd too, and what it finds is masked in the copy",
           "CNPJ#" in from_disk)
+    big_on_disk = SANDBOX / "shot-big.png"
+    big = Image.open(io.BytesIO(with_cnpj))
+    big.resize((big.width * 2, big.height * 2)).save(big_on_disk)
+    scaled = hook("post", {"tool_name": "Read", "tool_input": {"file_path": str(big_on_disk)}, "tool_response": read_image(copy_reads_worse)})
+    check("Read of an image file larger than its copy: still found and masked", "CNPJ#" in scaled)
+    not_an_image = SANDBOX / "doc.pdf"
+    not_an_image.write_bytes(b"%PDF-1.4 not really")
+    pdf = json.loads(hook("post", {"tool_name": "Read", "tool_input": {"file_path": str(not_an_image)}, "tool_response": read_image(with_cnpj)}))
+    check("Read whose file is not an image: the copy is still masked, not withheld",
+          "CNPJ#" in json.dumps(pdf) and "masking failed" not in json.dumps(pdf))
     zero_check = next(c for c in (fake_cpf(s) for s in range(200)) if c[9] == "0")
     misread = f"{zero_check[:3]}.{zero_check[3:6]}.{zero_check[6:9]}-@{zero_check[10]}"
     split = [{"text": part, "block_num": 1, "par_num": 1, "line_num": 1, "left": 10 * i, "top": 0, "width": 9, "height": 9}
@@ -723,9 +733,14 @@ if image_module.available():
     check("pasted images not checked in time: all blocked, none sent unchecked", len(timed_out) == 2)
     desktop_blocked = hook("prompt", {**pasted, "prompt": "what is this?"})
     check("Claude Desktop: an image pasted without the [Image #N] mark is checked and blocked", '"block"' in desktop_blocked)
-    check("Claude Desktop: images already checked are not checked again", hook("prompt", {**pasted, "prompt": "and now?"}) == "")
-    (pasted_dir / "3.png").write_bytes(with_cnpj)
-    check("Claude Desktop: a new image is checked whenever it was pasted", '"block"' in hook("prompt", {**pasted, "prompt": "and this?"}))
+    check("Claude Desktop: a blocked image keeps blocking until its read request", '"block"' in hook("prompt", {**pasted, "prompt": "and now?"}))
+    read_request = f"Read {pasted_dir / '1.png'}. what is this?"
+    check("Claude Desktop: the read request the block suggested passes", hook("prompt", {**pasted, "prompt": read_request}) == "")
+    check("Claude Desktop: after it, the next message passes", hook("prompt", {**pasted, "prompt": "thanks"}) == "")
+    (pasted_dir / "1.png").write_bytes(with_cnpj + b"\0")  # same name, new content: a new image
+    check("Claude Desktop: a reused file name with new content is checked again", '"block"' in hook("prompt", {**pasted, "prompt": "and this?"}))
+    check("Claude Desktop: pii-ok sends it, and the next message passes",
+          hook("prompt", {**pasted, "prompt": "pii-ok"}) == "" and hook("prompt", {**pasted, "prompt": "ok"}) == "")
     missing, _ = hook_module._pasted_images_to_block({**pasted, "prompt": "[Image #9] what is this?"})
     check("a pasted image whose file is not found is blocked, not sent unchecked", len(missing) == 1)
     not_found = hook("prompt", {**pasted, "prompt": "[Image #9] what is this?"})

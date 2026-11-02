@@ -87,7 +87,8 @@ def _mask_images(image, response, vault, source_path: str = ""):
     if not image.available():
         return response, IMAGE_UNCHECKED
     try:
-        source = Path(source_path).read_bytes() if source_path and Path(source_path).is_file() else None
+        is_image = Path(source_path).suffix.lower() in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
+        source = Path(source_path).read_bytes() if is_image and Path(source_path).is_file() else None
         masked, labels = image.mask_images(response, vault, source)
     except Exception as e:
         # The output must keep the image shape, or Claude Code falls back to the original.
@@ -172,11 +173,25 @@ def _copy_to_clipboard(text: str) -> bool:
     return False
 
 
+def _clear_pasted(event: dict) -> None:
+    """pii-ok sends the pasted images as they are: none of them blocks a later message."""
+    try:
+        import image
+
+        image.remember_pasted(event, [p for p in image.pasted_images(event) if p.is_file()], [])
+    except Exception:
+        pass
+
+
 def _pasted_images_to_block(event: dict) -> tuple[list[str], bool]:
     """Pasted images that hold personal data, or that could not be checked; and whether OCR is missing."""
     import image
 
     paths = image.pasted_images(event)
+    # The read request the block suggested names the image: it is being read, masked, not sent.
+    named = [p for p in paths if str(p) in event.get("prompt", "")]
+    image.remember_pasted(event, named, [])
+    paths = [p for p in paths if p not in named]
     if not paths:
         return [], False
     if not image.available():
@@ -194,6 +209,7 @@ def _pasted_images_to_block(event: dict) -> tuple[list[str], bool]:
         except Exception:
             blocked.append(str(path))
     disarm()
+    image.remember_pasted(event, [p for p in paths if str(p) not in blocked], [p for p in paths if str(p) in blocked])
     return blocked, False
 
 
@@ -202,6 +218,7 @@ def prompt(event: dict) -> None:
 
     text = event.get("prompt", "")
     if PROMPT_ESCAPE in text:
+        _clear_pasted(event)
         return
     mentioned = _mentioned_files_with_pii(pii, text, event.get("cwd", "."))
     if mentioned:

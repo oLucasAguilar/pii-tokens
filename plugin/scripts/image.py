@@ -7,6 +7,7 @@ and the hooks say so.
 import base64
 import csv
 import io
+import json
 import os
 import re
 import shutil
@@ -19,6 +20,7 @@ import pii
 SCALE = 3
 PAD = 2
 RETRY = "retry"
+MAX_REREADS = 10
 OCR_DIGIT_FIXES = str.maketrans("OoIlSB@", "0011580")
 PASTED_IMAGE = re.compile(r"\[Image #(\d+)\]")
 DOCUMENT_SHAPE = re.compile(r"\d[\dOoIl@. /-]*[\dOoIl@]")  # O, o, I, l, @: digits OCR commonly misreads
@@ -99,7 +101,7 @@ def _hits(words: list[dict], vault, enlarged) -> list[tuple[tuple[int, int, int,
     lines: dict[tuple, list[dict]] = {}
     for w in words:
         lines.setdefault((w["block_num"], w["par_num"], w["line_num"]), []).append(w)
-    hits, taken = [], set()
+    hits, taken, rereads = [], set(), 0
     for line in lines.values():
         for size in (1, 2, 3, 4, 5):  # OCR splits "(11) 98765-4321" and "123.456.789 -09"; the narrowest match wins
             for i in range(len(line) - size + 1):
@@ -109,7 +111,9 @@ def _hits(words: list[dict], vault, enlarged) -> list[tuple[tuple[int, int, int,
                     continue
                 label = _label(" ".join(w["text"] for w in group), vault)
                 if label == RETRY:
-                    label = _reread(enlarged, group, vault)
+                    # A sheet of values shaped like ddd.ddd.ddd would otherwise reread them all and run out of time.
+                    rereads += 1
+                    label = _reread(enlarged, group, vault) if rereads <= MAX_REREADS else None
                 if label is None:
                     continue
                 taken |= ids
@@ -148,14 +152,30 @@ def has_personal_data(data: bytes) -> bool:
     return bool(_find(data, pii.Vault(store=False))[2])
 
 
+def _as_copy(source: bytes, size: tuple[int, int]) -> bytes:
+    from PIL import Image, ImageOps
+
+    original = ImageOps.exif_transpose(Image.open(io.BytesIO(source))).convert("RGB")
+    if original.size != size:
+        original = original.resize(size, Image.LANCZOS)
+    out = io.BytesIO()
+    original.save(out, "PNG")
+    return out.getvalue()
+
+
 def mask_image(data: bytes, vault, source: bytes | None = None) -> tuple[bytes, list[str]]:
     image, fmt, hits = _find(data, vault)
     if source:
         # The copy Claude Code hands the hook can read worse than the file it came from: OCR the file too,
-        # and draw what it finds on the copy, at the copy's scale.
-        original, _, found = _find(source, vault)
-        sx, sy = image.width / original.width, image.height / original.height
-        hits += [((int(l * sx), int(t * sy), int(r * sx), int(b * sy)), label) for (l, t, r, b), label in found]
+        # at the copy's size (so it costs no more), and draw what it finds on the copy.
+        try:
+            from PIL import Image
+
+            original = _as_copy(source, image.size)
+            if Image.open(io.BytesIO(original)).tobytes() != image.tobytes():  # same pixels: nothing new to read
+                hits += _find(original, vault)[2]
+        except Exception:
+            pass  # the copy's own reading still stands
     if not hits:
         return data, []
     for box, label in hits:
@@ -234,6 +254,37 @@ def restore_images(value, images):
     return _rebuild(value, lambda _: next(queue))
 
 
+def _fingerprint(path: Path) -> str:
+    stat = path.stat()
+    return f"{path.name}|{stat.st_size}|{stat.st_mtime_ns}"
+
+
+def _state_path(session: str) -> Path:
+    return pii.DATA_DIR / "pasted-checked" / f"{session}.json"
+
+
+def _pasted_state(session: str) -> dict:
+    try:
+        return json.loads(_state_path(session).read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def remember_pasted(event: dict, cleared: list[Path], blocked: list[Path]) -> None:
+    """Record, per session, which pasted images passed and which were blocked (and so still block)."""
+    session = event.get("session_id")
+    if not session or not (cleared or blocked):
+        return
+    state = _pasted_state(session)
+    for paths, status in ((cleared, "ok"), (blocked, "blocked")):
+        for path in paths:
+            if path.is_file():
+                state[_fingerprint(path)] = status
+    target = _state_path(session)
+    target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    target.write_text(json.dumps(state))
+
+
 def pasted_images(event: dict) -> list[Path]:
     """The files Claude Code saved for the images pasted into this prompt."""
     numbers = PASTED_IMAGE.findall(event.get("prompt", ""))
@@ -244,15 +295,11 @@ def pasted_images(event: dict) -> list[Path]:
     user_folder = f"claude-{os.getuid()}" if hasattr(os, "getuid") else "claude"
     folder = Path(tempfile.gettempdir()) / user_folder / Path(transcript).parent.name / session / "images"
     if not numbers:
-        # Claude Desktop attaches a pasted image without the [Image #N] mark: take the ones not checked before.
+        # Claude Desktop attaches a pasted image without the [Image #N] mark: take the ones not cleared before,
+        # which includes one blocked earlier and still waiting for its read request or pii-ok.
         if not folder.is_dir():
             return []
-        seen_file = pii.DATA_DIR / "pasted-checked" / f"{session}.txt"
-        seen = set(seen_file.read_text().split()) if seen_file.exists() else set()
-        new = sorted(p for p in folder.iterdir() if p.is_file() and p.name not in seen)
-        if new:
-            seen_file.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-            seen_file.write_text("\n".join(sorted(seen | {p.name for p in new})))
-        return new
+        state = _pasted_state(session)
+        return sorted(p for p in folder.iterdir() if p.is_file() and state.get(_fingerprint(p)) != "ok")
     # A pasted image whose file is not found cannot be checked; its missing path makes the check fail, and block.
     return [next(iter(sorted(folder.glob(f"{n}.*"))), folder / f"{n}.missing") for n in dict.fromkeys(numbers)]

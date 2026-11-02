@@ -13,6 +13,8 @@ Claude Desktop ──> pii-tokens (on your computer) ──> MCP server
 - Works with a remote (HTTP) MCP server, with or without OAuth.
 - **It protects only what the server returns.** What you type or attach in the chat, and what comes through another connector, goes straight to the model.
 - **Use it in Claude mode** (the chat, the icon left of `</>`). In Code mode the extension does not reach the session; there, the plugin protects.
+- **One server per extension.** Another MCP server connected directly in Desktop passes unmasked.
+- **Changed the settings?** Quit and reopen Desktop: conversations only see the new tools after that.
 - Tested in Claude Desktop 4.29 for Windows, with [Metabase](#metabase).
 
 ## Install

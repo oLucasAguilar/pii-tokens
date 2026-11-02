@@ -9,11 +9,12 @@ Plugin do Claude Code. Troca CPF, CNPJ, email e telefone por tokens antes de o C
 
 Reduz o vazamento por descuido, não o elimina. Antes de usar com dado real, leia os [limites](#limites).
 
-| Onde você usa o Claude | Status |
-|---|---|
-| Claude Code (terminal ou IDE) | ✅ Disponível: siga [Instalar](#instalar) |
-| Chat do Claude Desktop | 🚧 Em desenvolvimento, para o que os conectores (MCP) devolvem. O que você cola ou anexa não é mascarado: troque nome, CPF e email por apelidos |
-| claude.ai | Sem suporte: troque nome, CPF e email por apelidos antes de colar ou anexar |
+| Onde | Status | Fica de fora |
+|---|---|---|
+| Claude Code (terminal, IDE) | ✅ Completo | os [limites](#limites) |
+| Claude Desktop, modo Code | ✅ Completo (testado no Windows) | os [limites](#limites) |
+| Claude Desktop, modo chat | 🟡 O que um MCP devolve, pela [extensão](docs/desktop.md) (testada no Windows) | o que você cola ou anexa |
+| claude.ai | ❌ Sem suporte | tudo |
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo.gif"><img alt="O Claude lê um CSV com nome, CPF e email e recebe tokens; um CPF colado na mensagem é barrado" src="docs/demo-light.gif"></picture>
 

@@ -13,6 +13,8 @@ Claude Desktop ──> pii-tokens (no seu computador) ──> servidor MCP
 - Funciona com servidor MCP remoto (HTTP), com ou sem OAuth.
 - **Protege só o que o servidor devolve.** O que você digita ou anexa no chat, e o que chega por outro conector, vai direto ao modelo.
 - **Use no modo Claude** (o chat, ícone à esquerda do `</>`). No modo Code a extensão não chega à sessão; lá, quem protege é o plugin.
+- **Um servidor por extensão.** Outro servidor MCP ligado direto no Desktop passa sem máscara.
+- **Trocou a configuração?** Feche e abra o Desktop: as conversas só veem as ferramentas novas depois disso.
 - Testado no Claude Desktop 4.29 para Windows, com o [Metabase](#metabase).
 
 ## Instalar

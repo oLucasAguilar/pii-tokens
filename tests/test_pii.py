@@ -731,9 +731,10 @@ if image_module.available():
     timed_out, _ = hook_module._pasted_images_to_block({**pasted, "prompt": "[Image #1] [Image #2]"})
     image_module.has_personal_data = real_check
     check("pasted images not checked in time: all blocked, none sent unchecked", len(timed_out) == 2)
+    (pasted_dir / "1.png").write_bytes(with_cnpj)  # pasted again in Desktop: a new file to check
     desktop_blocked = hook("prompt", {**pasted, "prompt": "what is this?"})
     check("Claude Desktop: an image pasted without the [Image #N] mark is checked and blocked", '"block"' in desktop_blocked)
-    check("Claude Desktop: a blocked image keeps blocking until its read request", '"block"' in hook("prompt", {**pasted, "prompt": "and now?"}))
+    check("Claude Desktop: a blocked image blocks once; the next message passes", hook("prompt", {**pasted, "prompt": "and now?"}) == "")
     read_request = f"Read {pasted_dir / '1.png'}. what is this?"
     check("Claude Desktop: the read request the block suggested passes", hook("prompt", {**pasted, "prompt": read_request}) == "")
     check("Claude Desktop: after it, the next message passes", hook("prompt", {**pasted, "prompt": "thanks"}) == "")

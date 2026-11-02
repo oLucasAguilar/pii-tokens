@@ -295,11 +295,11 @@ def pasted_images(event: dict) -> list[Path]:
     user_folder = f"claude-{os.getuid()}" if hasattr(os, "getuid") else "claude"
     folder = Path(tempfile.gettempdir()) / user_folder / Path(transcript).parent.name / session / "images"
     if not numbers:
-        # Claude Desktop attaches a pasted image without the [Image #N] mark: take the ones not cleared before,
-        # which includes one blocked earlier and still waiting for its read request or pii-ok.
+        # Claude Desktop attaches a pasted image without the [Image #N] mark: take the ones not checked before.
+        # A blocked one is not sent again unless pasted again, which makes a new file, so it blocks once.
         if not folder.is_dir():
             return []
         state = _pasted_state(session)
-        return sorted(p for p in folder.iterdir() if p.is_file() and state.get(_fingerprint(p)) != "ok")
+        return sorted(p for p in folder.iterdir() if p.is_file() and _fingerprint(p) not in state)
     # A pasted image whose file is not found cannot be checked; its missing path makes the check fail, and block.
     return [next(iter(sorted(folder.glob(f"{n}.*"))), folder / f"{n}.missing") for n in dict.fromkeys(numbers)]

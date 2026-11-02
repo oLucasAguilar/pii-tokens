@@ -454,7 +454,9 @@ FIRST_NAMES = (
     "Paula Paulo Pedro Rafael Rafaela Renata Ricardo Roberto Rodrigo Sandra Sérgio Sergio Simone Tatiana Thiago Tiago Vanessa "
     "Vinícius Vinicius Vitor Victor Vitória Vitoria"
 ).split()
-NAME_RE = re.compile(rf"(?<!\w)(?:{'|'.join(FIRST_NAMES)})(?:(?: d[aoe]s?)? [A-ZÀ-Ý][a-zà-ÿ]{{2,}}){{1,3}}(?!\w)")
+# Up to five surnames, hyphenated or joined by "e", so no part of a full name is left out; × and ÷ are not letters.
+_SURNAME = r"[A-ZÀ-ÖØ-Ý][a-zß-öø-ÿ]{2,}(?:-[A-ZÀ-ÖØ-Ý][a-zß-öø-ÿ]{2,})*"
+NAME_RE = re.compile(rf"(?<!\w)(?:{'|'.join(FIRST_NAMES)})(?:(?: d[aoe]s?| e)? {_SURNAME}){{1,5}}(?!\w)")
 KEPT_IPS = re.compile(r"127\.|0\.0\.0\.0$|255\.255\.")
 
 

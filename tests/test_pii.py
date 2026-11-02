@@ -348,6 +348,9 @@ pii.MASK_NAMES = True
 masked = pii.mask_text("falei com a Maria Souza ontem e com João da Silva Santos.", vault)
 check("names: masked in running text", re.fullmatch(r"falei com a NAME#[0-9a-f]{12} ontem e com NAME#[0-9a-f]{12}\.", masked) is not None)
 check("names: the token gives the name back", pii.unmask_text(masked, vault) == "falei com a Maria Souza ontem e com João da Silva Santos.")
+for whole in ("Ana Maria-Souza", "Maria Souza e Silva", "João Pedro da Silva Santos Lima", "Maria Souza"):
+    check(f"names: all of {whole} is masked", re.fullmatch(r"x NAME#[0-9a-f]{12} y", pii.mask_text(f"x {whole} y", vault)) is not None)
+check("names: a division sign is not part of a name", pii.mask_text("Maria Souza÷2", vault).endswith("÷2"))
 for kept in ("maria souza", "Maria", "Banana Souza", "Mariana"):
     check(f"names: {kept} is kept", pii.mask_text(f"x {kept} y", vault) == f"x {kept} y")
 pii.MASK_NAMES = False

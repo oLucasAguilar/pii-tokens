@@ -7,7 +7,15 @@ Plugin do Claude Code. Troca CPF, CNPJ, email e telefone por tokens antes de o C
 - Mesmo valor, mesmo token: o Claude ainda conta, cruza e compara.
 - O valor real fica num cofre cifrado na sua máquina.
 
-![O Claude lê um CSV com nome, CPF e email e recebe tokens; um CPF colado na mensagem é barrado](docs/demo.gif)
+Reduz o vazamento por descuido, não o elimina. Antes de usar com dado real, leia os [limites](#limites).
+
+| Onde você usa o Claude | Status |
+|---|---|
+| Claude Code (terminal ou IDE) | ✅ Disponível: siga [Instalar](#instalar) |
+| Chat do Claude Desktop | 🚧 Em desenvolvimento, para o que os conectores (MCP) devolvem. O que você cola ou anexa não é mascarado: troque nome, CPF e email por apelidos |
+| claude.ai | Sem suporte: troque nome, CPF e email por apelidos antes de colar ou anexar |
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo.gif"><img alt="O Claude lê um CSV com nome, CPF e email e recebe tokens; um CPF colado na mensagem é barrado" src="docs/demo-light.gif"></picture>
 
 [Read in English](README.en.md)
 
@@ -21,11 +29,12 @@ Plugin do Claude Code. Troca CPF, CNPJ, email e telefone por tokens antes de o C
 1. Reinicie o Claude Code.
 2. Peça: "roda o `pii-selfcheck`". Tem de terminar em `all good`.
 
-Requer Linux ou macOS e Python 3.10+.
-Para mascarar imagem, instale o `tesseract`:
+Requer Python 3.10+. No Windows, também o Git for Windows.
+Imagem só é mascarada com o `tesseract` instalado; sem ele, passa com aviso:
 
 ```
 apt install tesseract-ocr   # ou: brew install tesseract
+# Windows: instalador em github.com/UB-Mannheim/tesseract
 ```
 
 ## Na prática
@@ -34,7 +43,7 @@ apt install tesseract-ocr   # ou: brew install tesseract
 
 O valor real só é usado com a sua confirmação.
 
-![A consulta traz razão social e CNPJ e o Claude recebe tokens; o pii-exec pede confirmação antes de usar o valor real](docs/demo-banco.gif)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-banco.gif"><img alt="A consulta traz razão social e CNPJ e o Claude recebe tokens; o pii-exec pede confirmação antes de usar o valor real" src="docs/demo-banco-light.gif"></picture>
 
 **Texto num arquivo**, como uma anotação ou um email
 
@@ -57,15 +66,16 @@ Você escolhe que campo fica legível.
 
 **Imagem**
 
-![Uma imagem com CNPJ colada na mensagem é barrada; o Claude lê o arquivo e recebe o token no lugar do CNPJ](docs/demo-print.gif)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-print.gif"><img alt="Uma imagem com CNPJ colada na mensagem é barrada; o Claude lê o arquivo e recebe o token no lugar do CNPJ" src="docs/demo-print-light.gif"></picture>
 
 O hook lê o texto da imagem antes de o Claude ver.
 
 - CPF, CNPJ, email e telefone recebem o token desenhado por cima.
-- Imagem colada na mensagem, com dado pessoal:
-	- a mensagem é barrada;
-	- o pedido para ler o arquivo vai para a área de transferência;
-	- apague, cole e envie.
+- Print colado com CPF, email ou telefone:
+	1. A mensagem é barrada, e o pedido para ler o print já vai para o Ctrl+V.
+	2. Aperte Ctrl+V e Enter.
+	3. O Claude lê o print com os dados trocados por tokens.
+- Print salvo num arquivo: peça ao Claude para ler o arquivo, e ele já chega com tokens.
 - Sem o `tesseract`, a imagem passa, com aviso.
 
 **Precisa do valor real**
@@ -97,6 +107,7 @@ No chat do Desktop, hook não roda. Para um servidor MCP ali, use a extensão do
 ## Limites
 
 Protege contra vazamento por descuido, não contra um modelo decidido a extrair o dado.
+O que o detector não reconhece passa como está: revise antes de enviar dado sensível.
 
 Passam sem máscara:
 

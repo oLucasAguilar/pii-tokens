@@ -70,6 +70,10 @@ def _clean_old_reveals():
 
 
 def _open_in_editor(path: Path):
+    if platform.system() == "Windows":
+        # Not os.startfile: the copy keeps its extension, and Windows runs a .bat, .js or .py instead of showing it.
+        subprocess.Popen(["notepad.exe", str(path)])
+        return
     opener = "open" if platform.system() == "Darwin" else "xdg-open"
     subprocess.Popen([opener, str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -94,12 +98,30 @@ def cmd_exec(args):
     if not args:
         sys.exit("usage: pii-exec -- CMD ARGS...")
     vault = pii.Vault()
+    raw_stdin = sys.stdin.read() if read_stdin else None
     command = [pii.unmask_text(a, vault) for a in args]
-    stdin = pii.unmask_text(sys.stdin.read(), vault) if read_stdin else None
+    stdin = pii.unmask_text(raw_stdin, vault) if read_stdin else None
     result = subprocess.run(command, input=stdin, capture_output=True, text=True)
     sys.stdout.write(pii.mask_text(pii.mask_table_text(result.stdout, vault), vault))
     sys.stderr.write(pii.mask_text(result.stderr, vault))
+    if result.returncode != 0 or not result.stdout.strip():
+        # A document token becomes its digits; a file that writes it with dots and dash would not match,
+        # and an empty answer would read as "not there".
+        for token in _digits_only_tokens(args + ([raw_stdin] if raw_stdin else []), vault):
+            sys.stderr.write(f"[pii-tokens] {token} became its digits only. If nothing matched and the "
+                             f"file writes it with punctuation, use {token}.fmt\n")
     sys.exit(result.returncode)
+
+
+def _digits_only_tokens(texts, vault) -> list[str]:
+    """CPF and CNPJ tokens given back as digits: in the vault, and not asked for with .fmt."""
+    found = []
+    for text in texts:
+        for m in pii.TOKEN_RE.finditer(text):
+            if (m.group(1) in ("CPF", "CNPJ") and not pii.FORMATTED_TOKEN_RE.match(text, m.start())
+                    and m.group(0) not in found and vault.value_for(m.group(0))):
+                found.append(m.group(0))
+    return found
 
 
 def _scrub_value(value, vault, counter):

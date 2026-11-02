@@ -9,7 +9,15 @@ A Claude Code plugin. Before Claude reads them, it swaps for tokens:
 - Same value, same token: Claude can still count, join and compare.
 - The real value stays in an encrypted vault on your machine.
 
-![Claude reads a CSV with names, CPFs and emails and gets tokens; a CPF pasted into the prompt is blocked (screen in Portuguese)](docs/demo.gif)
+It reduces accidental leaks, it does not eliminate them. Before using it with real data, read the [limits](#limits).
+
+| Where you use Claude | Status |
+|---|---|
+| Claude Code (terminal or IDE) | ✅ Available: follow [Install](#install) |
+| Claude Desktop chat | 🚧 In development, for what connectors (MCP) return. What you paste or attach is not masked: swap names, CPFs and emails for nicknames |
+| claude.ai | Not supported: swap names, CPFs and emails for nicknames before pasting or attaching |
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo.gif"><img alt="Claude reads a CSV with names, CPFs and emails and gets tokens; a CPF pasted into the prompt is blocked (screen in Portuguese)" src="docs/demo-light.gif"></picture>
 
 [Leia em português](README.md)
 
@@ -23,7 +31,8 @@ A Claude Code plugin. Before Claude reads them, it swaps for tokens:
 1. Restart Claude Code.
 2. Ask Claude to "run `pii-selfcheck`". It must end with `all good`.
 
-Needs Linux or macOS and Python 3.10+. Images also need `tesseract`.
+Needs Python 3.10+. On Windows, also Git for Windows.
+Images are masked only with `tesseract` installed; without it, they pass with a warning.
 
 ## In practice
 
@@ -31,7 +40,7 @@ Needs Linux or macOS and Python 3.10+. Images also need `tesseract`.
 
 The real value is used only after you confirm.
 
-![The query returns company names and CNPJs and Claude gets tokens; pii-exec asks for confirmation before using the real value (screen in Portuguese)](docs/demo-banco.gif)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-banco.gif"><img alt="The query returns company names and CNPJs and Claude gets tokens; pii-exec asks for confirmation before using the real value (screen in Portuguese)" src="docs/demo-banco-light.gif"></picture>
 
 **Text in a file**, like a note or an email
 
@@ -55,9 +64,11 @@ You choose which fields stay readable.
 **Images**
 
 - The hook reads the image text before Claude sees it, and draws tokens over the values.
-- A pasted image with personal data blocks the message:
-	- a `Read <file>` request lands in your clipboard;
-	- paste it and send.
+- A pasted screenshot with a CPF, email or phone:
+	1. The message is blocked, and a request to read the screenshot lands in your clipboard.
+	2. Press Ctrl+V and Enter.
+	3. Claude reads the screenshot with the data swapped for tokens.
+- A screenshot saved to a file: ask Claude to read the file, and it arrives with tokens.
 
 **When you need the real value**
 
@@ -88,6 +99,7 @@ In Desktop chat, hooks do not run. For an MCP server there, use the Desktop exte
 ## Limits
 
 It protects against accidental leaks, not against a model set on extracting the data.
+Whatever the detector does not recognize goes through as is: review before sending sensitive data.
 
 These get through unmasked:
 

@@ -26,7 +26,8 @@ This protects against accidental exposure, not against a model trying to extract
 	- Their output goes straight into the context, and they cannot be blocked.
 - **Images are masked by OCR, and OCR makes mistakes.** What it cannot read stays visible.
 	- On test screenshots: CPF 127 of 128, CNPJ 124, phone 128, email 103. Names are not detected.
-	- A screenshot pasted into the message cannot be swapped: it is blocked, and Claude reads the file instead. Measured on Linux only.
+	- A screenshot pasted into the message cannot be swapped: it is blocked, and Claude reads the file instead. Measured on Linux and Windows, in the terminal and in Claude Desktop's Code mode; not measured on macOS.
+	- A screenshot that only shows tokens passes; one whose file the plugin cannot find is blocked, with a notice.
 	- Without `tesseract`, the image goes through, with a warning.
 - **A query built to dodge the field names gets through.**
 	- A SQL function, such as `SELECT reverse(cpf)`.

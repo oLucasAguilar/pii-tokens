@@ -458,9 +458,27 @@ def _outside_tokens(text: str, pattern: re.Pattern, replace) -> str:
     return "".join(parts) + pattern.sub(replace, text[last:])
 
 
+FORMATTED_TOKEN_RE = re.compile(rf"(?:{TOKEN_RE.pattern})\.fmt\b")
+
+
+def formatted(kind: str, value: str) -> str:
+    """A CPF or CNPJ with its punctuation; other values as they are."""
+    if kind == "CPF" and len(value) == 11:
+        return f"{value[:3]}.{value[3:6]}.{value[6:9]}-{value[9:]}"
+    if kind == "CNPJ" and len(value) == 14:
+        return f"{value[:2]}.{value[2:5]}.{value[5:8]}/{value[8:12]}-{value[12:]}"
+    return value
+
+
 def unmask_text(text: str, vault: Vault) -> str:
+    def replace_formatted(m):
+        value = vault.value_for(m.group(0)[: -len(".fmt")])
+        return formatted(m.group(1), value) if value else m.group(0)
+
     def replace(m):
         return vault.value_for(m.group(0)) or m.group(0)
+
+    text = FORMATTED_TOKEN_RE.sub(replace_formatted, text)
 
     for _ in range(3):
         unmasked = TOKEN_RE.sub(replace, text)

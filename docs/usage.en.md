@@ -10,7 +10,7 @@ On the first session, the plugin installs its dependencies, pinned by hash, into
 
 - If that fails, masking still runs, but tokens show as `CPF#????????` and cannot be reversed.
 
-To mask images, install `tesseract` (`apt install tesseract-ocr` or `brew install tesseract`).
+To mask images, install `tesseract` (`apt install tesseract-ocr`, `brew install tesseract`, or on Windows the installer at github.com/UB-Mannheim/tesseract, which needs administrator rights and shows as "unknown publisher").
 
 ## Check that it works
 
@@ -39,8 +39,14 @@ The `pii-*` commands are already on Claude's PATH. To run them in your own termi
 export PATH="$HOME/.claude/plugins/data/pii-tokens-pii-tokens/bin:$PATH"
 ```
 
+On Windows (PowerShell), once, then reopen the terminal:
+
+```
+[Environment]::SetEnvironmentVariable("PATH", "$HOME\.claude\plugins\data\pii-tokens-pii-tokens\bin;" + [Environment]::GetEnvironmentVariable("PATH", "User"), "User")
+```
+
 - `pii-unmask` and `pii-allow` only work this way: they run in an interactive terminal, so Claude cannot use them on its own.
-- The folder is a link the plugin refreshes on every session, so it survives updates.
+- The plugin rebuilds the folder on every session (on Windows, with launchers instead of the link), so it survives updates.
 
 ## Settings
 
@@ -75,8 +81,10 @@ All optional. Asked when the plugin is enabled, changed later with `/plugin conf
 ## Notes on the commands
 
 - **`pii-exec` masks the output again,** so the real value never comes back to Claude.
+- **CPF and CNPJ come back as digits only.** If the file writes them with punctuation, use `CPF#....fmt`. When the command finds nothing or fails, `pii-exec` reminds you.
 - **Every `pii-exec` with a token asks for your confirmation,** auto mode included. Read the command: `curl` or any network command would send the real value out, and a web page or a ticket can try to trick Claude into that.
 	- While the command runs, the real value is visible in the process list (`ps`).
+	- The question recognizes `pii-exec` written in the command, even with quotes or a backslash inside. A command built from a shell variable (`$X-exec`) or called by a wildcard path (`.../bin/pii-exe?`) is not recognized; then only Claude Code's own permission applies.
 - **`pii-reveal` opens the copy in your editor,** outside Claude's reach.
 - **`pii-allow` is for values that are fine to send:** your company's CNPJ, your own email in `git log`.
 	- The allowlist keeps tokens, not values, so the config file holds no personal data.

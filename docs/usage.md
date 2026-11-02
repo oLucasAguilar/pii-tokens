@@ -10,7 +10,7 @@ Na primeira sessão, o plugin instala as dependências dele, fixadas por hash, n
 
 - Se isso falhar, a máscara continua, mas os tokens aparecem como `CPF#????????` e não voltam.
 
-Para mascarar imagem, instale o `tesseract` (`apt install tesseract-ocr` ou `brew install tesseract`).
+Para mascarar imagem, instale o `tesseract` (`apt install tesseract-ocr`, `brew install tesseract`, ou no Windows o instalador em github.com/UB-Mannheim/tesseract, que pede administrador e aparece como "editor desconhecido").
 
 ## Conferir se funciona
 
@@ -39,8 +39,14 @@ Os comandos `pii-*` já estão no PATH do Claude. Para rodar no seu terminal, ad
 export PATH="$HOME/.claude/plugins/data/pii-tokens-pii-tokens/bin:$PATH"
 ```
 
+No Windows (PowerShell), uma vez, e reabra o terminal:
+
+```
+[Environment]::SetEnvironmentVariable("PATH", "$HOME\.claude\plugins\data\pii-tokens-pii-tokens\bin;" + [Environment]::GetEnvironmentVariable("PATH", "User"), "User")
+```
+
 - `pii-unmask` e `pii-allow` só funcionam assim: rodam em terminal interativo, para o Claude não usar sozinho.
-- A pasta é um link que o plugin refaz a cada sessão, então sobrevive às atualizações.
+- O plugin refaz a pasta a cada sessão (no Windows, com lançadores no lugar do link), então ela sobrevive às atualizações.
 
 ## Configurações
 
@@ -76,8 +82,10 @@ Todas opcionais. Pedidas quando o plugin é ativado, alteráveis depois com `/pl
 ## Notas sobre os comandos
 
 - **O `pii-exec` mascara a saída de novo,** então o valor real nunca volta para o Claude.
+- **CPF e CNPJ voltam só com os dígitos.** Se o arquivo escreve com pontuação, use `CPF#....fmt`. Quando o comando não acha nada ou falha, o `pii-exec` lembra disso.
 - **Todo `pii-exec` com token pede a sua confirmação,** inclusive no modo auto. Leia o comando: um `curl` ou outro comando de rede mandaria o dado real para fora, e uma página ou uma tarefa podem tentar induzir o Claude a isso.
 	- Enquanto o comando roda, o valor real aparece na lista de processos (`ps`).
+	- A pergunta reconhece o `pii-exec` escrito no comando, mesmo com aspas ou barra no meio. Um comando montado com variável do shell (`$X-exec`) ou chamado por caminho com coringa (`.../bin/pii-exe?`) não é reconhecido; aí vale só a permissão normal do Claude Code.
 - **O `pii-reveal` abre a cópia no seu editor,** fora do alcance do Claude.
 - **O `pii-allow` é para valor que pode ir:** o CNPJ da sua empresa, o seu próprio email no `git log`.
 	- A lista guarda tokens, não valores, então o arquivo de config não tem dado pessoal.

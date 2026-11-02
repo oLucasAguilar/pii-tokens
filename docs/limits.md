@@ -14,7 +14,10 @@ Isto protege contra exposição acidental, não contra um modelo tentando extrai
 - **Comando que falha chega cru ao modelo.**
 	- O hook que o Claude Code dispara na falha não consegue trocar a saída.
 	- Pedido em [anthropics/claude-code#97278](https://github.com/anthropics/claude-code/issues/97278).
-- **Nome em texto livre não é detectado:** corpo de issue, página web, linha de log. Só o que estiver na lista de termos, ou, com **Mascarar nomes em texto livre** ligada, nome comum seguido de sobrenome ("Maria Souza"). Nome fora da lista embutida ou sozinho passa.
+- **Nome em texto livre passa** (corpo de issue, página web, linha de log), exceto:
+	- o que estiver na lista de termos;
+	- com **Mascarar nomes em texto livre** ligada, nome comum + sobrenome ("Maria Souza").
+	- Mesmo com a opção, passa: nome fora da lista embutida, nome sozinho, nome em MAIÚSCULAS.
 - **Termo da lista digitado no prompt passa.** O prompt só é barrado por CPF, CNPJ, telefone e email.
 - **Algumas formas de documento não são detectadas:**
 	- telefone escrito como 11 dígitos corridos, a não ser em coluna de telefone

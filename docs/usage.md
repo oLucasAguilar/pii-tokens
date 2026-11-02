@@ -65,7 +65,7 @@ Todas opcionais. Pedidas quando o plugin é ativado, alteráveis depois com `/pl
 	- Termo de 6 letras ou mais casa também dentro de outra palavra (domínio, nome de arquivo) e com `.`, `_` ou `-` entre as letras.
 	- Termo menor, como um primeiro nome, só como palavra inteira: `Ana` não casa em `banana`. Para pegar um nome curto dentro de um domínio, liste a forma longa (`acmecorp`).
 	- Cada grafia tem o próprio token (`Acme` e `ACME` são dois), para o `pii-exec` usar o texto exato.
-- **Mascarar nomes em texto livre:** desligada por padrão. Troca nome comum + sobrenome com inicial maiúscula por `NAME#`, sem modelo de IA; pode pegar nome de lugar ou marca que pareça pessoa.
+- **Mascarar nomes em texto livre:** desligada por padrão. Troca nome comum + sobrenome com inicial maiúscula por `NAME#`, sem modelo de IA; pode pegar nome de lugar ou marca que pareça pessoa, e palavras com inicial maiúscula logo depois do nome ("Ana Paula Vendas" vira um token só).
 - **Mascarar IP:** desligada por padrão. Troca endereço IPv4 por `IP#`; `127.x`, `0.0.0.0` e `255.255.x` ficam.
 - **Campos legíveis:** campos que você sabe que não guardam nome de pessoa, numa ferramenta só. Formato `ferramenta:caminho`.
 	- Exemplo, para ler o título das tarefas num MCP de gestão de tarefas: `mcp__tracker__:**.items[].name`, `mcp__tracker__:**.subitems[].name`, `mcp__tracker__:**.boards[].name`.

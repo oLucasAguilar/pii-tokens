@@ -64,7 +64,7 @@ All optional. Asked when the plugin is enabled, changed later with `/plugin conf
 	- A term of 6 letters or more also matches inside another word (domain, file name) and with `.`, `_` or `-` between letters.
 	- A shorter term, such as a first name, matches only as a whole word: `Ana` does not match in `banana`. To catch a short name inside a domain, list the long form (`acmecorp`).
 	- Each spelling gets its own token (`Acme` and `ACME` are two), so `pii-exec` uses the exact text.
-- **Mask names in free text:** off by default. Replaces a common first name plus a capitalized surname with `NAME#`, with no AI model; it can catch a place or brand name that looks like a person.
+- **Mask names in free text:** off by default. Replaces a common first name plus a capitalized surname with `NAME#`, with no AI model; it can catch a place or brand name that looks like a person, and capitalized words right after the name ("Ana Paula Vendas" becomes one token).
 - **Mask IP addresses:** off by default. Replaces IPv4 addresses with `IP#`; `127.x`, `0.0.0.0` and `255.255.x` are kept.
 - **Readable fields:** fields you know hold no person's name, in one tool. Format `tool:path`.
 	- Example, to read task titles in a task tracker MCP: `mcp__tracker__:**.items[].name`, `mcp__tracker__:**.subitems[].name`, `mcp__tracker__:**.boards[].name`.

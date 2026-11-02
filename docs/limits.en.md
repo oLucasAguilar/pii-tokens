@@ -14,7 +14,10 @@ This protects against accidental exposure, not against a model trying to extract
 - **Commands that fail reach the model raw.**
 	- The hook Claude Code fires on failure cannot change the output.
 	- Requested in [anthropics/claude-code#97278](https://github.com/anthropics/claude-code/issues/97278).
-- **Names in free text are not detected:** issue bodies, web pages, log lines. Only what is in the term list, or, with **Mask names in free text** on, a common first name followed by a surname ("Maria Souza"). A name outside the built-in list, or alone, passes.
+- **Names in free text get through** (issue bodies, web pages, log lines), except:
+	- what is in the term list;
+	- with **Mask names in free text** on, a common first name + surname ("Maria Souza").
+	- Even with the option, these pass: a name outside the built-in list, a name alone, a name in CAPITALS.
 - **A listed term typed into the prompt gets through.** The prompt is blocked only for a CPF, CNPJ, phone or email.
 - **Some document shapes are not detected:**
 	- a phone written as 11 bare digits, unless it sits in a phone column

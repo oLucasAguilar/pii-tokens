@@ -226,6 +226,11 @@ check("dev tool names: package and pod names are kept", pii.mask_json(package, v
 check("dev tool names: a person in a tool-shaped document is still masked", all("Maria Silva" not in pii.mask_json(doc, vault) for doc in forged))
 check("dev tool names: a plain person record is still masked", "Maria" not in pii.mask_json('{"id": 1, "name": "Maria"}', vault))
 check("dev tool names: tool names next to a masked person are kept", "clientes" in pii.mask_json(forged[3], vault) and "relatorio" in pii.mask_json(forged[4], vault))
+# gh --json names a branch headRefName: a git ref, not a person; the author next to it is still masked.
+pr = json.dumps({"headRefName": "feat/15-x", "baseRefName": "main", "author": {"login": "someone", "name": "Maria Silva"}})
+check("gh ref names are kept", all(f'"{ref}"' in pii.mask_json(pr, vault) for ref in ("feat/15-x", "main")))
+check("gh author name next to a ref is still masked", "Maria Silva" not in pii.mask_json(pr, vault))
+check("a key ending in name is still a name column", pii.column_kind("authorName") == "NAME")
 pii.DEV_TOOL_NAMES = False
 
 tracker = json.dumps({"data": {"boards": [{"id": "1", "name": "Dev tasks", "items_page": {"items": [
@@ -341,6 +346,19 @@ for kept in ("127.0.0.1", "0.0.0.0", "255.255.255.0", "999.1.1.1", "v1.2.3.4", "
 check("IP: an IP with CPF check digits becomes an IP token", pii.mask_text(f"host {ip_like} up", vault).startswith("host IP#"))
 check("IP: the token gives the address back", pii.unmask_text(pii.mask_text("10.9.8.7", vault), vault) == "10.9.8.7")
 pii.MASK_IP = False
+
+# Names in free text: off by default, masked when the option is on.
+check("names: kept by default", pii.mask_text("falei com a Maria Souza ontem", vault) == "falei com a Maria Souza ontem")
+pii.MASK_NAMES = True
+masked = pii.mask_text("falei com a Maria Souza ontem e com João da Silva Santos.", vault)
+check("names: masked in running text", re.fullmatch(r"falei com a NAME#[0-9a-f]{12} ontem e com NAME#[0-9a-f]{12}\.", masked) is not None)
+check("names: the token gives the name back", pii.unmask_text(masked, vault) == "falei com a Maria Souza ontem e com João da Silva Santos.")
+for whole in ("Ana Maria-Souza", "Maria Souza e Silva", "João Pedro da Silva Santos Lima", "Maria Souza"):
+    check(f"names: all of {whole} is masked", re.fullmatch(r"x NAME#[0-9a-f]{12} y", pii.mask_text(f"x {whole} y", vault)) is not None)
+check("names: a division sign is not part of a name", pii.mask_text("Maria Souza÷2", vault).endswith("÷2"))
+for kept in ("maria souza", "Maria", "Banana Souza", "Mariana"):
+    check(f"names: {kept} is kept", pii.mask_text(f"x {kept} y", vault) == f"x {kept} y")
+pii.MASK_NAMES = False
 
 # The same email or name in other cases shares one token; before, the 4th spelling raised and the output was suppressed.
 spellings = {pii.mask_text(e, vault) for e in ("caio@mail.test", "Caio@mail.test", "CAIO@mail.test", "caio@MAIL.test", "Caio@Mail.Test")}

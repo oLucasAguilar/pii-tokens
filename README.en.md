@@ -24,22 +24,22 @@ It reduces accidental leaks, it does not eliminate them. Before using it with re
 
 ## Install
 
-Needs Python 3.10+ and, on Windows, Git for Windows.
-
-- **On Windows, install Python yourself** ([python.org](https://www.python.org/downloads/), ticking "Add python.exe to PATH"). If Claude installs it from Desktop, Python lands in a folder only Desktop can see: masking works, but `pii-unmask` and `pii-allow` do not run in your terminal.
-
 **Asking Claude** (Claude Code, or Desktop's Code mode), paste:
 
 ```
-Install the pii-tokens plugin following https://github.com/oLucasAguilar/pii-tokens/blob/main/README.en.md#install, and install whatever is missing.
+Install pii-tokens: https://github.com/oLucasAguilar/pii-tokens
 ```
 
-**By hand**, in Claude Code:
+It follows [llms-install.md](llms-install.md), written for it: it installs what is missing and asks for your click only when needed.
+
+**By hand:** needs Python 3.10+ and, on Windows, Git for Windows. Then, in Claude Code:
 
 ```
 /plugin marketplace add oLucasAguilar/pii-tokens
 /plugin install pii-tokens@pii-tokens
 ```
+
+- On Windows, install Python from [python.org](https://www.python.org/downloads/), ticking "Add python.exe to PATH". Installed by Claude from inside Desktop, it lands in a folder only Desktop can see: masking works, but `pii-unmask` and `pii-allow` do not run in your terminal.
 
 **Then:**
 

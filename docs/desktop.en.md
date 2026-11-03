@@ -19,9 +19,20 @@ Claude Desktop ──> pii-tokens (on your computer) ──> MCP server
 
 ## Install
 
-1. In the repository, run `make desktop-bundle`. It writes `build/pii-tokens.mcpb`.
-2. Open the file in Claude Desktop (macOS or Windows). Desktop installs Python and the dependencies itself.
+1. Download `pii-tokens-<version>.mcpb` from the latest release named `desktop-v...`, under [Releases](https://github.com/oLucasAguilar/pii-tokens/releases). Not "Source code", which GitHub adds to every release.
+2. Open the file in Claude Desktop (macOS or Windows): double-click it, or Settings > Extensions > Advanced settings > Install Extension. Desktop installs Python and the dependencies itself.
 3. Fill in the fields and turn the extension on.
+
+**Check the file (optional).** The bundle is code from this repository, zipped. To see that the download is the release's code:
+
+```
+git clone https://github.com/oLucasAguilar/pii-tokens && cd pii-tokens
+git checkout desktop-v<version>
+python3 desktop/build.py --check <path to the downloaded .mcpb>
+# expected: "same code as this folder"; otherwise it lists the files that differ
+```
+
+On Windows, `python` instead of `python3`. To build the bundle yourself instead of downloading it: `python3 desktop/build.py`, which writes `build/pii-tokens.mcpb`.
 
 Do not also add the same server as a direct connector: that way results reach Claude unmasked.
 

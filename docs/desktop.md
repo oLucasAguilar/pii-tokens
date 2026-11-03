@@ -19,9 +19,20 @@ Claude Desktop ──> pii-tokens (no seu computador) ──> servidor MCP
 
 ## Instalar
 
-1. No repositório, rode `make desktop-bundle`. Sai o arquivo `build/pii-tokens.mcpb`.
-2. Abra o arquivo no Claude Desktop (macOS ou Windows). O Desktop instala o Python e as dependências sozinho.
+1. Baixe o `pii-tokens-<versão>.mcpb` da release mais recente com nome `desktop-v...`, em [Releases](https://github.com/oLucasAguilar/pii-tokens/releases). Não é o "Source code", que o GitHub põe em toda release.
+2. Abra o arquivo no Claude Desktop (macOS ou Windows): duplo clique, ou Settings > Extensions > Advanced settings > Install Extension. O Desktop instala o Python e as dependências sozinho.
 3. Preencha os campos e ative a extensão.
+
+**Conferir o arquivo (opcional).** O pacote é código deste repositório, compactado. Para ver que o baixado é o mesmo código da release:
+
+```
+git clone https://github.com/oLucasAguilar/pii-tokens && cd pii-tokens
+git checkout desktop-v<versão>
+python3 desktop/build.py --check <caminho do .mcpb baixado>
+# esperado: "same code as this folder"; senão, lista os arquivos diferentes
+```
+
+No Windows, `python` no lugar de `python3`. Para gerar o pacote você mesmo, sem baixar: `python3 desktop/build.py`, que grava `build/pii-tokens.mcpb`.
 
 Não adicione o mesmo servidor também como conector direto: por ali o resultado chega ao Claude sem máscara.
 

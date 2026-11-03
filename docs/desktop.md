@@ -46,8 +46,9 @@ Não adicione o mesmo servidor também como conector direto: por ali o resultado
 ## O que é mascarado
 
 - **CPF, CNPJ, email e telefone:** em qualquer lugar do resultado, pelo formato, inclusive no nome de um campo. Também no texto de apresentação que o servidor manda ao conectar e na descrição das ferramentas.
-- **Nome:** pela coluna, nos formatos de tabela que a extensão conhece (hoje, o do Metabase), venha de qualquer servidor.
+- **Nome:** pela coluna, nos formatos de tabela que a extensão conhece (a lista fica em `desktop/pii_proxy/upstreams/`), venha de qualquer servidor.
 - **Nome em JSON comum** (fora de uma tabela conhecida) passa.
+- **As opções do plugin** (as de `/plugin configure`) não valem na extensão.
 
 ## Login (OAuth)
 
@@ -82,7 +83,7 @@ Preset `metabase`. Testado com o Metabase 0.64 e 0.65.
 - Libera o `execute_sql`, que lê mas não vem marcado (por isso o Desktop o lista em "Write/delete").
 - Esconde o `visualize_query`, o `render_drill_through` e o `get_parameter_values`, cujos dados não passam pela máscara.
 - O login pode pedir uma segunda tela na primeira consulta SQL.
-- Medido: `SELECT nome AS titulo` passou 5 de 5. Para fechar, bloqueie o `execute_sql` e deixe o `execute_query`.
+- Medido em 01/11/2026: `SELECT nome AS titulo` passou 5 de 5. Para fechar, bloqueie o `execute_sql` e deixe o `execute_query`.
 - Medido: com `Unmask in queries` ligado, `SUBSTRING('EMAIL#...', 1, n)` devolveu o começo do email.
 
 Outro servidor ganha suas regras num módulo em `desktop/pii_proxy/upstreams/`.

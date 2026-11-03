@@ -28,7 +28,7 @@ Isto protege contra exposição acidental, não contra um modelo tentando extrai
 - **Comando com `!` não passa por hook nenhum.**
 	- A saída entra direto no contexto, e não tem como ser barrado.
 - **Imagem é mascarada por OCR, e o OCR erra.** O que ele não lê fica visível.
-	- Em prints de teste: CPF 127 de 128, CNPJ 124, telefone 128, email 103. Nome não é detectado.
+	- Em prints de teste (medido em 23/10/2026): CPF 127 de 128, CNPJ 124, telefone 128, email 103. Nome não é detectado.
 	- Print colado na mensagem não pode ser trocado: é barrado, e o Claude lê o arquivo. Medido no Linux e no Windows, no terminal e no modo Code do Claude Desktop; no macOS, não medido.
 	- Print que só mostra tokens passa; print cujo arquivo o plugin não acha é barrado, com aviso.
 	- Sem `tesseract`, a imagem passa, com aviso.

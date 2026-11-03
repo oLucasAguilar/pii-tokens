@@ -46,8 +46,9 @@ Do not also add the same server as a direct connector: that way results reach Cl
 ## What is masked
 
 - **CPF, CNPJ, email and phone:** anywhere in the result, by format, field names included. Also in the text the server sends on connect and in the tool descriptions.
-- **Names:** by column, in the table formats the extension knows (today, Metabase's), from any server.
+- **Names:** by column, in the table formats the extension knows (listed in `desktop/pii_proxy/upstreams/`), from any server.
 - **A name in plain JSON** (outside a known table) passes.
+- **Plugin options** (the ones in `/plugin configure`) do not apply to the extension.
 
 ## Sign-in (OAuth)
 
@@ -82,7 +83,7 @@ Preset `metabase`. Tested with Metabase 0.64 and 0.65.
 - Allows `execute_sql`, which reads but is not marked (so Desktop lists it under "Write/delete").
 - Hides `visualize_query`, `render_drill_through` and `get_parameter_values`, whose data does not pass through the masking.
 - The sign-in may show a second screen on the first SQL query.
-- Measured: `SELECT name AS title` passed 5 of 5. To close it, block `execute_sql` and keep `execute_query`.
+- Measured on 2026-11-01: `SELECT name AS title` passed 5 of 5. To close it, block `execute_sql` and keep `execute_query`.
 - Measured: with `Unmask in queries` on, `SUBSTRING('EMAIL#...', 1, n)` returned the start of the email.
 
 Another server gets its rules in a module under `desktop/pii_proxy/upstreams/`.

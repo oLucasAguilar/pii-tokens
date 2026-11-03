@@ -22,15 +22,29 @@ Reduz o vazamento por descuido, não o elimina. Antes de usar com dado real, lei
 
 ## Instalar
 
+Requer Python 3.10+ e, no Windows, o Git for Windows.
+
+- **No Windows, instale o Python você mesmo** ([python.org](https://www.python.org/downloads/), marcando "Add python.exe to PATH"). Se o Claude instalar pelo Desktop, o Python fica numa pasta que só o Desktop enxerga: a máscara funciona, mas `pii-unmask` e `pii-allow` não rodam no seu terminal.
+
+**Pedindo ao Claude** (Claude Code, ou o modo Code do Desktop), cole:
+
+```
+Instale o plugin pii-tokens seguindo https://github.com/oLucasAguilar/pii-tokens#instalar, e instale o que faltar.
+```
+
+**Na mão**, no Claude Code:
+
 ```
 /plugin marketplace add oLucasAguilar/pii-tokens
 /plugin install pii-tokens@pii-tokens
 ```
 
-1. Reinicie o Claude Code.
-2. Peça: "roda o `pii-selfcheck`". Tem de terminar em `all good`.
+**Depois:**
 
-Requer Python 3.10+. No Windows, também o Git for Windows.
+1. Reinicie o Claude Code (no Desktop: Quit, e abra de novo).
+2. Peça: "rode o `pii-check` e leia o arquivo que ele indicar". A resposta tem de trazer `CPF#...` e `EMAIL#...` nas duas partes, não os números nem o endereço.
+    - Vieram os números: reinicie e peça de novo. Se continuar, abra uma [issue](https://github.com/oLucasAguilar/pii-tokens/issues) com a saída do `pii-check` e a versão (`claude --version`).
+
 Imagem só é mascarada com o `tesseract` instalado; sem ele, passa com aviso:
 
 ```

@@ -24,15 +24,29 @@ It reduces accidental leaks, it does not eliminate them. Before using it with re
 
 ## Install
 
+Needs Python 3.10+ and, on Windows, Git for Windows.
+
+- **On Windows, install Python yourself** ([python.org](https://www.python.org/downloads/), ticking "Add python.exe to PATH"). If Claude installs it from Desktop, Python lands in a folder only Desktop can see: masking works, but `pii-unmask` and `pii-allow` do not run in your terminal.
+
+**Asking Claude** (Claude Code, or Desktop's Code mode), paste:
+
+```
+Install the pii-tokens plugin following https://github.com/oLucasAguilar/pii-tokens/blob/main/README.en.md#install, and install whatever is missing.
+```
+
+**By hand**, in Claude Code:
+
 ```
 /plugin marketplace add oLucasAguilar/pii-tokens
 /plugin install pii-tokens@pii-tokens
 ```
 
-1. Restart Claude Code.
-2. Ask Claude to "run `pii-selfcheck`". It must end with `all good`.
+**Then:**
 
-Needs Python 3.10+. On Windows, also Git for Windows.
+1. Restart Claude Code (in Desktop: Quit, and open it again).
+2. Ask Claude to "run `pii-check` and read the file it names". The answer must show `CPF#...` and `EMAIL#...` in both parts, not the digits or the address.
+    - Got the digits: restart and ask again. If it persists, open an [issue](https://github.com/oLucasAguilar/pii-tokens/issues) with the `pii-check` output and the version (`claude --version`).
+
 Images are masked only with `tesseract` installed; without it, they pass with a warning.
 
 ## In practice

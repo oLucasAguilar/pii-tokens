@@ -407,6 +407,34 @@ cli_module.cmd_allow([allowed_email, allowed_cpf])
 check("pii-allow writes the tokens", allowed_email in json.loads(config_path.read_text())["allowed_tokens"])
 check("pii-allow rejects a value that is not a token",
       subprocess.run(["python3", str(SCRIPTS / "cli.py"), "pii-allow", "maria@cliente.example"], capture_output=True, text=True).returncode != 0)
+check_run = subprocess.run(["python3", str(SCRIPTS / "cli.py"), "pii-check"], capture_output=True, text=True)
+check_cpf = re.search(r"CPF: (\S+)", check_run.stdout).group(1)
+check_email = re.search(r"email: (\S+)", check_run.stdout).group(1)
+check_file = Path(re.search(r"Now read (\S+) with", check_run.stdout).group(1))
+file_text = check_file.read_text()
+check("pii-check prints a valid fictitious CPF and an email, and writes another pair (the control: raw values are there)",
+      pii.valid_cpf(re.sub(r"\D", "", check_cpf)) and "@" in check_email and re.search(r"\d{3}\.\d{3}\.\d{3}-\d{2}", file_text))
+check("pii-check: its own text has no token-looking word, so tokens in Claude's answer come from the hook",
+      not re.search(r"(CPF|EMAIL)#", check_run.stdout))
+check_masked = hook("post", {"tool_name": "Bash", "tool_response": {"stdout": check_run.stdout, "stderr": ""}})
+check("pii-check: through the hook, the command output reaches Claude as tokens",
+      re.search(r"CPF#[0-9a-f]{12}", check_masked) and re.search(r"EMAIL#[0-9a-f]{12}", check_masked)
+      and check_cpf not in check_masked and check_email not in check_masked)
+read_masked = hook("post", {"tool_name": "Read", "tool_input": {"file_path": str(check_file)}, "tool_response": {"file": {"content": file_text}}})
+check("pii-check: through the hook, the file it wrote reaches Claude as tokens",
+      re.search(r"CPF#[0-9a-f]{12}", read_masked) and re.search(r"EMAIL#[0-9a-f]{12}", read_masked)
+      and not re.search(r"\d{3}\.\d{3}\.\d{3}-\d{2}", read_masked))
+check("pii-check: with a working keyring, no warning about irreversible tokens", "Warning" not in check_run.stdout)
+no_keyring = subprocess.run(["python3", str(SCRIPTS / "cli.py"), "pii-check"], capture_output=True, text=True,
+                            env={**os.environ, "PYTHON_KEYRING_BACKEND": "keyring.backends.fail.Keyring"})
+check("pii-check: without a usable keyring, it warns that tokens will not turn back into values", "Warning: these tokens cannot" in no_keyring.stdout)
+long_windows = "C:\\Users\\x\\AppData\\Local\\Temp\\claude\\" + "a" * 250 + "\\notes.md"
+check("pii-reveal: a Windows path past 260 characters gets the \\\\?\\ prefix",
+      cli_module.windows_long_path(long_windows) == "\\\\?\\" + long_windows)
+check("pii-reveal: a short Windows path is kept as is", cli_module.windows_long_path("C:\\notes.md") == "C:\\notes.md")
+check("pii-reveal: a path that already has the prefix is kept", cli_module.windows_long_path("\\\\?\\" + long_windows) == "\\\\?\\" + long_windows)
+long_share = "\\\\server\\share\\" + "a" * 250 + "\\notes.md"
+check("pii-reveal: a long network share path gets the \\\\?\\UNC\\ prefix", cli_module.windows_long_path(long_share) == "\\\\?\\UNC\\" + long_share[2:])
 for command in ("pii-sheet", "pii-reveal"):
     bare = subprocess.run(["python3", str(SCRIPTS / "cli.py"), command], capture_output=True, text=True)
     check(f"{command} without a file prints its usage", bare.returncode != 0 and f"usage: {command} FILE" in bare.stderr and "Traceback" not in bare.stderr)

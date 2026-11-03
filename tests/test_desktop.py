@@ -509,6 +509,44 @@ if fastmcp:
 else:
     print("skip proxy tests: fastmcp missing (desktop/.venv/bin/python tests/test_desktop.py runs them)")
 
+
+def bundle_check(rewrite=None):
+    """Build the bundle, optionally rewrite it as another machine might, and run build.py --check on it."""
+    import subprocess
+    import zipfile
+
+    built, other = SANDBOX / "built.mcpb", SANDBOX / "other.mcpb"
+    build = [sys.executable, str(ROOT / "desktop" / "build.py")]
+    subprocess.run(build + [str(built)], check=True, capture_output=True)
+    if rewrite:
+        with zipfile.ZipFile(built) as source, zipfile.ZipFile(other, "w", zipfile.ZIP_STORED) as target:
+            for name in source.namelist():
+                rewrite(target, name, source.read(name))
+        built = other
+    return subprocess.run(build + ["--check", str(built)], capture_output=True, text=True)
+
+
+def crlf(target, name, data):
+    target.writestr(name, data.replace(b"\n", b"\r\n") if name.endswith(".py") else data)
+
+
+def extra(target, name, data):
+    target.writestr(name, data)
+    if name == "pii.py":
+        target.writestr("pii_proxy/draft.py", b"# not in the repository\n")
+
+
+def edited(target, name, data):
+    target.writestr(name, data + b"\n# changed\n" if name == "pii.py" else data)
+
+
+check("bundle: --check accepts the bundle it builds", bundle_check().returncode == 0)
+check("bundle: --check accepts the same code zipped another way, with CRLF", bundle_check(crlf).returncode == 0)
+result = bundle_check(extra)
+check("bundle: --check flags a file that is not in the folder", result.returncode == 1 and "pii_proxy/draft.py" in result.stdout)
+result = bundle_check(edited)
+check("bundle: --check flags a changed file", result.returncode == 1 and "differs: pii.py" in result.stdout)
+
 import keyring  # noqa: E402
 
 for name in ("hmac", "vault", "oauth"):

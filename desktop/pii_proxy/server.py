@@ -72,22 +72,25 @@ class Settings:
 
 
 # Without this, Claude guessed that tokens change between conversations and explained the masking unasked.
-def own_instructions(unmask_kinds: frozenset) -> str:
-    """What Claude needs to know about the tokens; the part on queries depends on the Unmask in queries field."""
+def own_instructions(unmask_kinds: frozenset, distinct: bool = True) -> str:
+    """What Claude needs to know about the tokens; the part on queries depends on the Unmask in queries field, and the
+    promise of one token per value holds only when the vault has its key (without it every CPF is CPF#????????)."""
     if unmask_kinds:
         follow = (f"A {', '.join(sorted(unmask_kinds))} token written in a query reaches the server as the real value, "
                   "so it can be used as a filter. Names never do: to follow a person, filter by an ID.")
     else:
         follow = ("A token written in a query reaches the server as plain text and matches nothing: to follow a record "
                   "in a later query, filter by an ID or another column that comes back in clear.")
+    same = ("On this computer and user account the same value gets the same token in every conversation, so tokens can "
+            "be counted and compared." if distinct else
+            "Here the tokens cannot tell values apart (no system keyring): do not count or compare them.")
     return ("pii-tokens: personal data in these results (CPF, CNPJ, email, phone, names in query tables) arrives as "
-            "tokens such as CPF#3f1a9c0d22e4. On this computer and user account the same value gets the same token in "
-            f"every conversation, so tokens can be counted and compared. {follow} Do not explain the masking unless "
-            "the user asks.")
+            f"tokens such as CPF#3f1a9c0d22e4. {same} {follow} Do not explain the masking unless the user asks.")
 
 
 def _resolve(schema, definitions: dict):
-    """The field's schema with a local $ref and a one-item allOf followed; None when it cannot be read."""
+    """The field's schema with a local $ref and a one-item allOf followed; None when it cannot be read: an unknown
+    reference, or a schema that says nothing about the value (no type, choices or options), which takes anything."""
     for _ in range(10):
         if not isinstance(schema, dict):
             return None
@@ -99,7 +102,10 @@ def _resolve(schema, definitions: dict):
         elif len(schema.get("allOf", ())) == 1:
             schema = schema["allOf"][0]
         else:
-            return schema
+            options = schema.get("anyOf") or schema.get("oneOf")
+            if options:
+                return schema if all(_resolve(option, definitions) is not None for option in options) else None
+            return schema if {"type", "enum", "const"} & schema.keys() else None
     return None
 
 
@@ -281,7 +287,8 @@ def build(settings: Settings, upstream=None):
     # Resources and prompts would be another way out for data; nothing here masks them yet.
     proxy.disable(components={"resource", "template", "prompt"})
     proxy.add_middleware(MaskingMiddleware(settings, masker))
-    proxy.middleware.insert(0, InstructionsMiddleware(masker, own_instructions(settings.unmask_kinds)))
+    distinct = "?" not in masking.pii.Vault(store=False).token_for("CPF", "00000000000")
+    proxy.middleware.insert(0, InstructionsMiddleware(masker, own_instructions(settings.unmask_kinds, distinct)))
     return proxy
 
 

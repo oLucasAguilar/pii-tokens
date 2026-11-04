@@ -255,8 +255,17 @@ def cmd_check(args):
 
     cpf, email = fake_pair()
     file_cpf, file_email = fake_pair()
-    sample = Path(tempfile.gettempdir()) / "pii-check.txt"
-    sample.write_text(f"fictitious person, document {file_cpf}, contact {file_email}\n")
+    for old in Path(tempfile.gettempdir()).glob("pii-check-*.txt"):
+        try:
+            if not hasattr(os, "getuid") or old.stat().st_uid == os.getuid():  # Windows: the temp folder is the user's
+                old.unlink()
+        except OSError:
+            pass
+    # A file of its own (not a fixed name in the shared temp folder), the way pii-selfcheck keeps its sample.
+    handle, name = tempfile.mkstemp(prefix="pii-check-", suffix=".txt")
+    with os.fdopen(handle, "w") as out:
+        out.write(f"fictitious person, document {file_cpf}, contact {file_email}\n")
+    sample = Path(name)
     print("pii-check: a fictitious CPF and email, generated now.")
     print(f"CPF: {cpf}")
     print(f"email: {email}")

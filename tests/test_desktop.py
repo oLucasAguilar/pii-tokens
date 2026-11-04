@@ -350,6 +350,15 @@ if fastmcp:
     check("proxy: a $ref closed choice that lists \"null\" keeps it", fixed.get("kind") == "null")
     check("proxy: a $ref number field (through allOf) that takes no null leaves the text out", "size" not in fixed)
     check("proxy: a field with no type, or not in the schema, keeps the text as sent", fixed.get("sql") == "null" and fixed.get("extra") == "null")
+    loose = {"properties": {"any": {}, "doc": {"description": "free"}, "mixed": {"anyOf": [{"$ref": "http://x/y"}, {"type": "null"}]},
+                            "count": {"type": "integer"}}}
+    fixed = server.without_null_text({"any": "null", "doc": "null", "mixed": "null", "count": "null"}, loose)
+    check("proxy: an optional field whose schema takes anything, or has an unreadable option, keeps the text as sent",
+          fixed.get("any") == "null" and fixed.get("doc") == "null" and fixed.get("mixed") == "null")
+    check("control: an optional number field in the same call still leaves the text out", "count" not in fixed)
+    check("proxy: without a vault key, the note says tokens cannot be told apart",
+          "cannot tell values apart" in server.own_instructions(frozenset(), distinct=False)
+          and "gets the same token" not in server.own_instructions(frozenset(), distinct=False))
 
     keyed = json.dumps(masker.value({cpf: "late", "contacts": {email: 1}}))
     check("masking: a CPF or email used as a key is masked", cpf not in keyed and email not in keyed and "CPF#" in keyed)

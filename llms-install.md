@@ -7,7 +7,7 @@ This file never asks you to run a downloaded script (`curl ... | sh`, `irm ... |
 1. **Check:** Python 3.10+ (`python --version` or `python3 --version`) and, on Windows, Git (`git --version`).
 2. **Something is missing:** ask once: "X is missing. Do you want me to install it?"
     - **Yes:** install it yourself, saying first what you will run.
-        - Windows: download the official installer and start it with `Start-Process <installer> -Verb RunAs`, so it installs for all users; the person only clicks "Yes" on the Windows prompt. For Python, pass `/quiet InstallAllUsers=1 PrependPath=1`. Installed any other way from inside Claude Desktop, Python lands in a folder only Desktop can see.
+        - Windows: download the official installers, then run all of them, one after the other, from a single elevated PowerShell (`Start-Process powershell -Verb RunAs`), so the person clicks "Yes" on one Windows prompt. Python takes `/quiet InstallAllUsers=1 PrependPath=1`; Git takes `/VERYSILENT /NORESTART`. Right before, tell the person the prompt is coming and needs their click. Installed any other way from inside Claude Desktop, Python lands in a folder only Desktop can see.
         - macOS and Linux: the package manager (`brew install python`, `apt install python3`).
     - **No:** give the download link and stop. Do not ask again whether they installed it.
 3. **Install the plugin**, in a shell (in Claude Desktop the `claude` command ships with the app and may not be on PATH):

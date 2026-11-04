@@ -22,22 +22,22 @@ Reduz o vazamento por descuido, não o elimina. Antes de usar com dado real, lei
 
 ## Instalar
 
-**Pedindo ao Claude** (Claude Code, ou o modo Code do Desktop), cole:
-
-```
-Instale o pii-tokens: https://github.com/oLucasAguilar/pii-tokens
-```
-
-Ele segue o [llms-install.md](llms-install.md), escrito para ele: instala o que faltar e só pede o seu clique quando precisa.
-
-**Na mão:** requer Python 3.10+ e, no Windows, o Git for Windows. Depois, no Claude Code:
+Requer Python 3.10+ e, no Windows, o Git for Windows. No Claude Code:
 
 ```
 /plugin marketplace add oLucasAguilar/pii-tokens
 /plugin install pii-tokens@pii-tokens
 ```
 
-- No Windows, instale o Python pelo [python.org](https://www.python.org/downloads/), marcando "Add python.exe to PATH". Instalado pelo Claude de dentro do Desktop, ele fica numa pasta que só o Desktop enxerga: a máscara funciona, mas `pii-unmask` e `pii-allow` não rodam no seu terminal.
+- No Windows, instale o Python pelo [python.org](https://www.python.org/downloads/), marcando "Add python.exe to PATH".
+
+**Prefere que o Claude instale?** Cole no Claude Code (ou no modo Code do Desktop):
+
+```
+Instale o pii-tokens seguindo https://github.com/oLucasAguilar/pii-tokens/blob/main/llms-install.md
+```
+
+Ele pergunta uma vez antes de instalar o que faltar.
 
 **Depois:**
 

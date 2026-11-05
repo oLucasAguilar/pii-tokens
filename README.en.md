@@ -24,15 +24,31 @@ It reduces accidental leaks, it does not eliminate them. Before using it with re
 
 ## Install
 
+Needs Python 3.10+ and, on Windows, Git for Windows. In Claude Code:
+
 ```
 /plugin marketplace add oLucasAguilar/pii-tokens
 /plugin install pii-tokens@pii-tokens
 ```
 
-1. Restart Claude Code.
-2. Ask Claude to "run `pii-selfcheck`". It must end with `all good`.
+- On Windows, install Python from [python.org](https://www.python.org/downloads/), ticking "Add python.exe to PATH".
 
-Needs Python 3.10+. On Windows, also Git for Windows.
+**Rather have Claude install it?** Paste into Claude Code (or Desktop's Code mode):
+
+```
+Install pii-tokens following https://github.com/oLucasAguilar/pii-tokens/blob/main/llms-install.md
+```
+
+It asks once before installing what is missing.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-install.gif"><img alt="Claude asks once, installs Python and Git with one permission click and, after reopening, pii-check comes back as tokens (screen in Portuguese)" src="docs/demo-install-light.gif"></picture>
+
+**Then:**
+
+1. Restart Claude Code (in Desktop: Quit, and open it again).
+2. Ask Claude to "run `pii-check` and read the file it names". The answer must show `CPF#...` and `EMAIL#...` in both parts, not the digits or the address.
+    - Got the digits: restart and ask again. If it persists, open an [issue](https://github.com/oLucasAguilar/pii-tokens/issues) with the `pii-check` output and the version (`claude --version`).
+
 Images are masked only with `tesseract` installed; without it, they pass with a warning.
 
 ## In practice

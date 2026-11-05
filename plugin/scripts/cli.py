@@ -10,6 +10,7 @@
   pii-scrub [--apply] [--now] mask CPF/CNPJ/email in the transcripts under ~/.claude/projects
   pii-allow TOKEN... | --list | --remove TOKEN...
                               never mask or block these values (tokens, so the config holds no personal data)
+  pii-check                   print a fictitious CPF and email, and write a file with another pair; Claude sees tokens when masking works
   pii-selfcheck               run headless Claude sessions with a fictitious CPF and check what the model received
 """
 
@@ -78,8 +79,19 @@ def _open_in_editor(path: Path):
     subprocess.Popen([opener, str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def windows_long_path(path: str) -> str:
+    """Windows refuses paths past 260 characters unless they start with \\\\?\\; Claude Desktop's scratchpad goes past it."""
+    if len(path) < 260 or path.startswith("\\\\?\\"):
+        return path
+    if path.startswith("\\\\"):  # a network share, \\server\share\...
+        return "\\\\?\\UNC\\" + path[2:]
+    return "\\\\?\\" + path
+
+
 def cmd_reveal(args):
     source = Path(args[0])
+    if platform.system() == "Windows":
+        source = Path(windows_long_path(os.path.abspath(source)))
     pii.REVEAL_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
     _clean_old_reveals()
     target = pii.REVEAL_DIR / source.name
@@ -232,6 +244,37 @@ def _session_summary(run) -> str:
     return f"session ended: {ending}; model said: {said[:120]!r}" + (f"; stderr: {tail[0][:120]!r}" if tail else "")
 
 
+def cmd_check(args):
+    """Bash output passes the hook on its way to Claude; the file checks the Read path, which the hook reads apart."""
+    import secrets
+    import tempfile
+
+    def fake_pair():
+        cpf = _fake_cpf()
+        return f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}", f"check.{secrets.token_hex(3)}@mailbox.test"
+
+    cpf, email = fake_pair()
+    file_cpf, file_email = fake_pair()
+    for old in Path(tempfile.gettempdir()).glob("pii-check-*.txt"):
+        try:
+            if not hasattr(os, "getuid") or old.stat().st_uid == os.getuid():  # Windows: the temp folder is the user's
+                old.unlink()
+        except OSError:
+            pass
+    # A file of its own (not a fixed name in the shared temp folder), the way pii-selfcheck keeps its sample.
+    handle, name = tempfile.mkstemp(prefix="pii-check-", suffix=".txt")
+    with os.fdopen(handle, "w") as out:
+        out.write(f"fictitious person, document {file_cpf}, contact {file_email}\n")
+    sample = Path(name)
+    print("pii-check: a fictitious CPF and email, generated now.")
+    print(f"CPF: {cpf}")
+    print(f"email: {email}")
+    print(f"Now read {sample} with the Read tool: it holds another fictitious pair.")
+    print("Masking works when, in both, Claude received tokens (CPF and EMAIL followed by # and letters), not the digits and the address.")
+    if "?" in pii.Vault(store=False).token_for("CPF", cpf):
+        print("Warning: these tokens cannot be turned back into the real value (no usable keyring): pii-reveal and pii-exec will not work.")
+
+
 def cmd_selfcheck(args):
     import shutil
     import tempfile
@@ -324,6 +367,7 @@ def cmd_allow(args):
 
 COMMANDS = {
     "pii-allow": cmd_allow,
+    "pii-check": cmd_check,
     "pii-selfcheck": cmd_selfcheck,
     "pii-mask": cmd_mask,
     "pii-sheet": cmd_sheet,

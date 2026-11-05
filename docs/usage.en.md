@@ -14,11 +14,12 @@ To mask images, install `tesseract` (`apt install tesseract-ocr`, `brew install 
 
 ## Check that it works
 
-Run `pii-selfcheck` after installing, and again after every Claude Code update.
+Ask Claude to "run `pii-check` and read the file it names". Do it after installing and after every Claude Code update.
 
 - An update can break masking without any error.
-- It opens headless sessions with a fictitious CPF and reports what the model received.
-- It needs the `claude` CLI and costs a few small model calls.
+- The command prints a fictitious CPF and email, generated on the spot, and writes another pair to a file. With masking working, Claude receives `CPF#...` and `EMAIL#...` in both.
+- It checks command output and file reads. Search (Grep) and what you type go through other hook paths, which only `pii-selfcheck` covers (`CONTRIBUTING.md`).
+- If it warns that tokens will not turn back into values, a system keyring is missing: masking works, but `pii-reveal` and `pii-exec` do not.
 
 ## Commands
 
@@ -27,7 +28,7 @@ Run `pii-selfcheck` after installing, and again after every Claude Code update.
 | Run a command with the real value | `pii-exec -- grep CPF#3f1a9c0d22e4 app.log` | Claude or you |
 | Open a file with the real values | `pii-reveal report.md` | Claude or you |
 | Read an XLSX | `pii-sheet file.xlsx` | Claude or you |
-| Check that masking works | `pii-selfcheck` | Claude or you |
+| Check that masking works | `pii-check` | Claude |
 | Look up one token | `pii-unmask CPF#3f1a9c0d22e4` | only you |
 | Stop masking a value for good | `pii-allow EMAIL#91bd0e4a7c13` | only you |
 

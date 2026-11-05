@@ -14,4 +14,4 @@ about: Algo não funcionou como a documentação diz / Something does not work a
 
 **O que aconteceu / What happened**
 
-**Saída do `pii-selfcheck` e versão / `pii-selfcheck` output and version**
+**Saída do `pii-check` e versão (`claude --version`) / `pii-check` output and version (`claude --version`)**

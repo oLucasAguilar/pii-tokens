@@ -249,7 +249,7 @@ if fastmcp:
     check("proxy: logs, progress and sampling requests carry no personal data", '"done"' in result and cpf not in heard and email not in heard)
 
     # What the upstream says about itself: the instructions sent on connect and the tool texts.
-    from typing import Annotated
+    from typing import Annotated, Literal
 
     from pydantic import Field
 
@@ -277,6 +277,88 @@ if fastmcp:
     check("proxy: data-looking text the server writes (Metabase's note, a rows example) is kept, not withheld",
           "<data boundary=" in instructions and '\\"rows\\"' in tools)
     check("proxy: a schema keeps its structure and enum values", '{\\"a\\":1}' in tools)
+
+    check("proxy: its own note says a value keeps its token across conversations, after the upstream's",
+          "gets the same token" in instructions and instructions.index("<data boundary=") < instructions.index("pii-tokens:"))
+    check("control: a plain proxy has no such note", "gets the same token" not in plain_instructions)
+    check("proxy, default settings: the note says a token in a query matches nothing, and to filter by an ID",
+          "matches nothing" in instructions and "used as a filter" not in instructions)
+    unmasking, _ = asyncio.run(self_description(server.build(
+        server.Settings(url="http://upstream.invalid/mcp", unmask_kinds=frozenset({"CPF"})), upstream=talkative)))
+    check("proxy, Unmask in queries on: the note says a CPF token works as a filter, names do not",
+          "CPF token written in a query reaches the server as the real value" in unmasking and "Names never do" in unmasking)
+    silent = FastMCP("silent")
+
+    @silent.tool(annotations={"readOnlyHint": True})
+    def noop() -> str:
+        return "ok"
+
+    alone, _ = asyncio.run(self_description(server.build(server.Settings(url="http://upstream.invalid/mcp"), upstream=silent)))
+    check("proxy: the note goes out even when the upstream sends no instructions", "gets the same token" in alone)
+
+    from fastmcp.server.middleware import Middleware as UpstreamMiddleware
+
+    received = []
+
+    class Record(UpstreamMiddleware):
+        async def on_call_tool(self, context, call_next):
+            received.append(dict(context.message.arguments or {}))
+            return await call_next(context)
+
+    strict = FastMCP("strict")
+    strict.add_middleware(Record())
+
+    @strict.tool(annotations={"readOnlyHint": True})
+    def browse(action: str, limit: int | None = None, created_by: Literal["me"] | None = None, term: str | None = None,
+               page: int = 1) -> str:
+        return action
+
+    @strict.tool(annotations={"readOnlyHint": True})
+    def glossary(term: str) -> str:
+        return term
+
+    async def call(arguments):
+        async with Client(server.build(server.Settings(url="http://upstream.invalid/mcp"), upstream=strict)) as client:
+            return await client.call_tool("browse", arguments, raise_on_error=False)
+
+    sent = {"action": "list", "limit": "null", "created_by": "null", "term": "null", "page": "null"}
+    asyncio.run(call(sent))
+    check("proxy: \"null\" written as text goes as null where the field takes null (number, closed choice)",
+          received[-1].get("limit", "x") is None and received[-1].get("created_by", "x") is None)
+    check("proxy: \"null\" in a text field that takes null goes as null", received[-1].get("term", "x") is None)
+    check("proxy: \"null\" in an optional number field that takes no null is left out", "page" not in received[-1])
+
+    async def call_glossary():
+        async with Client(server.build(server.Settings(url="http://upstream.invalid/mcp"), upstream=strict)) as client:
+            return await client.call_tool("glossary", {"term": "null"}, raise_on_error=False)
+
+    asyncio.run(call_glossary())
+    check("proxy: \"null\" in a required text field is kept, it may be meant", received[-1] == {"term": "null"})
+    asyncio.run(call({"action": "list", "limit": 5}))
+    check("proxy: other arguments reach the server as sent", received[-1] == {"action": "list", "limit": 5})
+
+    async def call_plain(arguments):
+        async with Client(create_proxy(strict)) as client:
+            return await client.call_tool("browse", arguments, raise_on_error=False)
+
+    check("control: without pii-tokens, the server refuses the call with \"null\" as text", asyncio.run(call_plain(sent)).is_error)
+
+    refs = {"properties": {"kind": {"$ref": "#/$defs/Kind"}, "size": {"allOf": [{"$ref": "#/$defs/Size"}]},
+                           "sql": {"description": "the query"}},
+            "$defs": {"Kind": {"enum": ["a", "null", None]}, "Size": {"type": "integer"}}, "required": ["kind", "sql"]}
+    fixed = server.without_null_text({"kind": "null", "size": "null", "sql": "null", "extra": "null"}, refs)
+    check("proxy: a $ref closed choice that lists \"null\" keeps it", fixed.get("kind") == "null")
+    check("proxy: a $ref number field (through allOf) that takes no null leaves the text out", "size" not in fixed)
+    check("proxy: a field with no type, or not in the schema, keeps the text as sent", fixed.get("sql") == "null" and fixed.get("extra") == "null")
+    loose = {"properties": {"any": {}, "doc": {"description": "free"}, "mixed": {"anyOf": [{"$ref": "http://x/y"}, {"type": "null"}]},
+                            "count": {"type": "integer"}}}
+    fixed = server.without_null_text({"any": "null", "doc": "null", "mixed": "null", "count": "null"}, loose)
+    check("proxy: an optional field whose schema takes anything, or has an unreadable option, keeps the text as sent",
+          fixed.get("any") == "null" and fixed.get("doc") == "null" and fixed.get("mixed") == "null")
+    check("control: an optional number field in the same call still leaves the text out", "count" not in fixed)
+    check("proxy: without a vault key, the note says tokens cannot be told apart",
+          "cannot tell values apart" in server.own_instructions(frozenset(), distinct=False)
+          and "gets the same token" not in server.own_instructions(frozenset(), distinct=False))
 
     keyed = json.dumps(masker.value({cpf: "late", "contacts": {email: 1}}))
     check("masking: a CPF or email used as a key is masked", cpf not in keyed and email not in keyed and "CPF#" in keyed)

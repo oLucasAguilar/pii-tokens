@@ -12,10 +12,11 @@ Claude Desktop ──> pii-tokens (on your computer) ──> MCP server
 - The masking is the plugin's, with the same vault and the same tokens.
 - Works with a remote (HTTP) MCP server, with or without OAuth.
 - **It protects only what the server returns.** What you type or attach in the chat, and what comes through another connector, goes straight to the model.
-- **Use it in Claude mode** (the chat, the icon left of `</>`). In Code mode the extension does not reach the session; there, the plugin protects.
+- **Works in Claude mode** (the chat, the icon left of `</>`) and, in Desktop 4.4212, in Code mode too. In 4.29 it did not reach Code mode.
+- **Metabase in Code mode: use the extension.** The plugin does not read Metabase's table layout, and names in the rows pass.
 - **One server per extension.** Another MCP server connected directly in Desktop passes unmasked.
 - **Changed the settings?** Quit and reopen Desktop: conversations only see the new tools after that.
-- Tested in Claude Desktop 4.29 for Windows, with [Metabase](#metabase).
+- Tested in Claude Desktop 4.29 and 4.4212 for Windows, with [Metabase](#metabase).
 
 ## Install
 

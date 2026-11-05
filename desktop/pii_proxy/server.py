@@ -71,17 +71,111 @@ class Settings:
         return bool(tool.annotations and tool.annotations.read_only_hint)
 
 
-class InstructionsMiddleware(Middleware):
-    """Masks the instructions the upstream sends on connect. It must run outermost: the proxy adds those
-    instructions in a middleware of its own, after the inner ones have already seen the result."""
+# Without this, Claude guessed that tokens change between conversations and explained the masking unasked.
+def own_instructions(unmask_kinds: frozenset, distinct: bool = True) -> str:
+    """What Claude needs to know about the tokens; the part on queries depends on the Unmask in queries field, and the
+    promise of one token per value holds only when the vault has its key (without it every CPF is CPF#????????)."""
+    if unmask_kinds:
+        follow = (f"A {', '.join(sorted(unmask_kinds))} token written in a query reaches the server as the real value, "
+                  "so it can be used as a filter. Names never do: to follow a person, filter by an ID.")
+    else:
+        follow = ("A token written in a query reaches the server as plain text and matches nothing: to follow a record "
+                  "in a later query, filter by an ID or another column that comes back in clear.")
+    same = ("On this computer and user account the same value gets the same token in every conversation, so tokens can "
+            "be counted and compared." if distinct else
+            "Here the tokens cannot tell values apart (no system keyring): do not count or compare them.")
+    return ("pii-tokens: personal data in these results (CPF, CNPJ, email, phone, names in query tables) arrives as "
+            f"tokens such as CPF#3f1a9c0d22e4. {same} {follow} Do not explain the masking unless the user asks.")
 
-    def __init__(self, masker: masking.Masker):
+
+def _resolve(schema, definitions: dict):
+    """The field's schema with a local $ref and a one-item allOf followed; None when it cannot be read: an unknown
+    reference, or a schema that says nothing about the value (no type, choices or options), which takes anything."""
+    for _ in range(10):
+        if not isinstance(schema, dict):
+            return None
+        if "$ref" in schema:
+            ref = schema["$ref"]
+            if not ref.startswith("#/$defs/") or ref[8:] not in definitions:
+                return None
+            schema = definitions[ref[8:]]
+        elif len(schema.get("allOf", ())) == 1:
+            schema = schema["allOf"][0]
+        else:
+            options = schema.get("anyOf") or schema.get("oneOf")
+            if options:
+                return schema if all(_resolve(option, definitions) is not None for option in options) else None
+            return schema if {"type", "enum", "const"} & schema.keys() else None
+    return None
+
+
+def _accepts(schema, kind: str, definitions: dict) -> bool:
+    """Whether the field takes null (kind "null") or the text "null" (kind "string")."""
+    schema = _resolve(schema, definitions)
+    if schema is None:
+        return True
+    options = schema.get("anyOf") or schema.get("oneOf")
+    if options:
+        return any(_accepts(option, kind, definitions) for option in options)
+    # A closed choice takes the text only when "null" is one of its choices.
+    if "const" in schema:
+        return schema["const"] is None if kind == "null" else schema["const"] == "null"
+    if "enum" in schema:
+        return None in schema["enum"] if kind == "null" else "null" in schema["enum"]
+    declared = schema.get("type")
+    if declared is None:
+        return False
+    return declared == kind or (isinstance(declared, list) and kind in declared)
+
+
+def _closed_with_null_text(schema, definitions: dict) -> bool:
+    """A closed choice that lists the text "null" among its values: there the text is a real choice."""
+    schema = _resolve(schema, definitions)
+    if schema is None:
+        return False
+    options = schema.get("anyOf") or schema.get("oneOf")
+    if options:
+        return any(_closed_with_null_text(option, definitions) for option in options)
+    return schema.get("const") == "null" or "null" in schema.get("enum", ())
+
+
+def without_null_text(arguments: dict, parameters: dict) -> dict:
+    """Claude sometimes writes an empty argument as the text "null" ("limit": "null"), and the server refuses the
+    whole call. Where the field takes null and "null" is not one of its choices, it goes as null; where the field takes
+    neither null nor that text and is optional, it is left out. Otherwise, or when the schema cannot be read, the
+    text goes as sent."""
+    parameters = parameters or {}
+    fields = parameters.get("properties", {})
+    definitions = parameters.get("$defs", {})
+    required = set(parameters.get("required", []))
+    fixed = {}
+    for key, value in arguments.items():
+        schema = fields.get(key)
+        if value != "null" or _resolve(schema, definitions) is None:
+            fixed[key] = value
+        elif _accepts(schema, "null", definitions) and not _closed_with_null_text(schema, definitions):
+            fixed[key] = None
+            print(f"[pii-tokens] argument {key!r} came as the text null: sent as null", file=sys.stderr)
+        elif key in required or _accepts(schema, "string", definitions):
+            fixed[key] = value
+        else:
+            print(f"[pii-tokens] argument {key!r} came as the text null: left out", file=sys.stderr)
+    return fixed
+
+
+class InstructionsMiddleware(Middleware):
+    """Masks the instructions the upstream sends on connect, and adds ours. It must run outermost: the proxy adds
+    those instructions in a middleware of its own, after the inner ones have already seen the result."""
+
+    def __init__(self, masker: masking.Masker, own: str):
         self.masker = masker
+        self.own = own
 
     def _masked(self, result):
-        if getattr(result, "instructions", None):
-            return result.model_copy(update={"instructions": self.masker.written(result.instructions)})
-        return result
+        if not hasattr(result, "instructions"):
+            return result
+        upstream = self.masker.written(result.instructions) if result.instructions else ""
+        return result.model_copy(update={"instructions": f"{upstream}\n\n{self.own}".strip()})
 
     async def on_initialize(self, context, call_next):
         return self._masked(await call_next(context))
@@ -119,6 +213,7 @@ class MaskingMiddleware(Middleware):
         if tool is None or not self.settings.allows(tool):
             raise ToolError(f"Tool {name!r} is not available through this proxy.")
         arguments = self.masker.unmask(context.message.arguments or {})
+        arguments = without_null_text(arguments, tool.parameters)
         context = context.copy(message=context.message.model_copy(update={"arguments": arguments}))
         try:
             result = await call_next(context)
@@ -192,7 +287,8 @@ def build(settings: Settings, upstream=None):
     # Resources and prompts would be another way out for data; nothing here masks them yet.
     proxy.disable(components={"resource", "template", "prompt"})
     proxy.add_middleware(MaskingMiddleware(settings, masker))
-    proxy.middleware.insert(0, InstructionsMiddleware(masker))
+    distinct = "?" not in masking.pii.Vault(store=False).token_for("CPF", "00000000000")
+    proxy.middleware.insert(0, InstructionsMiddleware(masker, own_instructions(settings.unmask_kinds, distinct)))
     return proxy
 
 

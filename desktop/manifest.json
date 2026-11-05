@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "pii-tokens",
   "display_name": "pii-tokens",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "icon": "icon.png",
   "description": "Connects Claude to an MCP server and masks CPF, CNPJ, email, phone and name columns in its results before Claude reads them.",
   "author": {

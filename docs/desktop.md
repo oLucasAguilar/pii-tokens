@@ -12,10 +12,11 @@ Claude Desktop ──> pii-tokens (no seu computador) ──> servidor MCP
 - A máscara é a mesma do plugin, com o mesmo cofre e os mesmos tokens.
 - Funciona com servidor MCP remoto (HTTP), com ou sem OAuth.
 - **Protege só o que o servidor devolve.** O que você digita ou anexa no chat, e o que chega por outro conector, vai direto ao modelo.
-- **Use no modo Claude** (o chat, ícone à esquerda do `</>`). No modo Code a extensão não chega à sessão; lá, quem protege é o plugin.
+- **Funciona no modo Claude** (o chat, ícone à esquerda do `</>`) e, no Desktop 4.4212, também no modo Code. No 4.29 ela não chegava ao modo Code.
+- **Metabase no modo Code: use a extensão.** O plugin não lê o formato de tabela do Metabase, e o nome nas linhas passa.
 - **Um servidor por extensão.** Outro servidor MCP ligado direto no Desktop passa sem máscara.
 - **Trocou a configuração?** Feche e abra o Desktop: as conversas só veem as ferramentas novas depois disso.
-- Testado no Claude Desktop 4.29 para Windows, com o [Metabase](#metabase).
+- Testado no Claude Desktop 4.29 e 4.4212 para Windows, com o [Metabase](#metabase).
 
 ## Instalar
 

@@ -14,11 +14,12 @@ Para mascarar imagem, instale o `tesseract` (`apt install tesseract-ocr`, `brew 
 
 ## Conferir se funciona
 
-Rode `pii-selfcheck` depois de instalar, e de novo a cada atualização do Claude Code.
+Peça ao Claude: "rode o `pii-check` e leia o arquivo que ele indicar". Faça depois de instalar e a cada atualização do Claude Code.
 
 - Uma atualização pode quebrar a máscara sem dar erro nenhum.
-- Ele abre sessões sem interface com um CPF fictício e mostra o que o modelo recebeu.
-- Precisa do CLI `claude` e custa algumas chamadas pequenas ao modelo.
+- O comando imprime um CPF e um email fictícios, gerados na hora, e grava outro par num arquivo. Com a máscara funcionando, o Claude recebe `CPF#...` e `EMAIL#...` nos dois.
+- Confere a saída de comandos e a leitura de arquivos. Busca (Grep) e o que você digita usam outros caminhos do hook, que só o `pii-selfcheck` cobre (`CONTRIBUTING.md`).
+- Se ele avisar que os tokens não voltam ao valor real, falta um cofre do sistema (keyring): a máscara funciona, mas `pii-reveal` e `pii-exec` não.
 
 ## Comandos
 
@@ -27,7 +28,7 @@ Rode `pii-selfcheck` depois de instalar, e de novo a cada atualização do Claud
 | Rodar um comando com o valor real | `pii-exec -- grep CPF#3f1a9c0d22e4 app.log` | o Claude ou você |
 | Abrir um arquivo com os valores reais | `pii-reveal relatorio.md` | o Claude ou você |
 | Ler um XLSX | `pii-sheet arquivo.xlsx` | o Claude ou você |
-| Conferir se a máscara funciona | `pii-selfcheck` | o Claude ou você |
+| Conferir se a máscara funciona | `pii-check` | o Claude |
 | Consultar um token | `pii-unmask CPF#3f1a9c0d22e4` | só você |
 | Parar de mascarar um valor | `pii-allow EMAIL#91bd0e4a7c13` | só você |
 

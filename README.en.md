@@ -41,6 +41,8 @@ Install pii-tokens following https://github.com/oLucasAguilar/pii-tokens/blob/ma
 
 It asks once before installing what is missing.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-install.gif"><img alt="Claude asks once, installs Python and Git with one permission click and, after reopening, pii-check comes back as tokens (screen in Portuguese)" src="docs/demo-install-light.gif"></picture>
+
 **Then:**
 
 1. Restart Claude Code (in Desktop: Quit, and open it again).

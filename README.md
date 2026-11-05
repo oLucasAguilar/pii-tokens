@@ -39,6 +39,8 @@ Instale o pii-tokens seguindo https://github.com/oLucasAguilar/pii-tokens/blob/m
 
 Ele pergunta uma vez antes de instalar o que faltar.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-install.gif"><img alt="O Claude pergunta uma vez, instala Python e Git com um clique de permissão e, depois de reabrir, o pii-check chega como token" src="docs/demo-install-light.gif"></picture>
+
 **Depois:**
 
 1. Reinicie o Claude Code (no Desktop: Quit, e abra de novo).
